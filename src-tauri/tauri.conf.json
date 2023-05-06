@@ -13,9 +13,20 @@
   "tauri": {
     "allowlist": {
       "all": false,
+      "fs": {
+        "all": true
+      },
+      "path": {
+        "all": true
+      },
       "shell": {
         "all": false,
         "open": true
+      },
+      "dialog": {
+        "all": true,
+        "open": true,
+        "save": true
       }
     },
     "bundle": {
@@ -27,7 +38,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.osiris.dev",
       "targets": "all"
     },
     "security": {
@@ -40,9 +51,8 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "osiris",
-        "width": 800,
-        "height": 600
+        "maximized": true,
+        "title": "osiris"
       }
     ]
   }
