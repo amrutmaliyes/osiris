@@ -16,18 +16,20 @@
     files = getFiles;
   }
 
-  async function getFolders(folderName){
-    console.log("folderName directory:", currentDirectory, folderName);
-    let directory = currentDirectory+'/'+folderName;
-    const getFiles = await invoke("list_files_in_dir", { directory });
-    console.log("Selected files:", getFiles);
-    files = getFiles;
+  async function getFolders(file) {
+    console.log("folderName directory:", currentDirectory, file);
+    if(file.filetype == "Folder"){
+      let directory = currentDirectory + "/" + file.filename;
+      const getFiles = await invoke("list_files_in_dir", { directory });
+      console.log("Selected files:", getFiles);
+      files = getFiles;
+    }
+   
   }
 
   onMount(() => {
-      goFullScreen();
+    goFullScreen();
   });
-
 </script>
 
 <main>
@@ -42,14 +44,54 @@
           <div class="row">
             {#if files}
               {#each files as file}
-                <div class="col-md-3 grid-margin stretch-card mb-3" on:click={() => getFolders(file)}>
+                <div
+                  class="col-md-3 grid-margin stretch-card mb-3"
+                  on:click={() => getFolders(file)}
+                  on:keydown={(e) => {
+                    if (e.key === "Enter") {
+                      getFolders(file);
+                    }
+                  }}
+                  on:keyup={(e) => {
+                    if (e.key === "Enter") {
+                      getFolders(file);
+                    }
+                  }}
+                >
                   <div class="home-card">
                     <div class="card-body">
                       <div class="aligner-wrapper">
-                        <img src="/folder.png" class="logo-dark" alt="" srcset="" />
+                        {#if file.filetype == "PDF"}
+                          <a href={file.filename} target="_blank">
+                            <img
+                              src="/pdf.png"
+                              class="logo-dark"
+                              alt=""
+                              srcset=""
+                            />
+                          </a>
+                        {:else if file.filetype == "Video"}
+                          <video width="100%" height="auto" controls controlsList="nodownload">
+                            <source src={file.filepath} type="video/mp4" />
+                            <track
+                              kind="captions"
+                              src="captions.vtt"
+                              srclang="en"
+                              label="English"
+                            />
+                          </video>
+                        {:else}
+                          <img
+                            src="/folder.png"
+                            class="logo-dark"
+                            alt=""
+                            srcset=""
+                          />
+                        {/if}
                         <span
                           class="d-block text-center text-dark text-overflow-2 font-weight-semibold mb-0"
-                          >{file}</span>
+                          >{file.filename}</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -58,8 +100,9 @@
             {:else}
               <p>Loading...</p>
             {/if}
-          </div>          
+          </div>
         </div>
+
         <!--Footer Section-->
         <Footer />
       </div>

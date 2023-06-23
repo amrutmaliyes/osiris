@@ -5,15 +5,41 @@
   let password = "secret456";
   
   let currentUser;
+  import { open } from '@tauri-apps/api/dialog';
 
+  const jarFilePath = '/Users/amrutmaliye/Downloads/JavaEncrypterNew.jar';
+  const pwdPath = '/Users/amrutmaliye/Downloads/encrypted_video.mp4';
   async function handleButtonClick() {
     console.log('Check Login Function')
-    const users = await invoke('get_all_users', { username, password })
-    if(users){
-      currentUser = users.username;
+    // const users = await invoke('get_all_users', { username, password })
+    // if(users){
+    //   currentUser = users.username;
+    // }
+    // console.log('users:', users)
+    // push('/')
+    // Open a selection dialog for image files
+    const selected = await open({
+      multiple: false,
+    });
+    console.log("selected",selected);
+    if (Array.isArray(selected)) {
+      // user selected multiple files
+    } else if (selected === null) {
+      // user cancelled the selection
+    } else {
+      try {
+        const response = await invoke('execute_jar_command',{selected});
+        console.log('JAR command executed:', response);
+        if(response){
+          const videoPlayer = document.getElementById('videoPlayer');
+          videoPlayer.src = '/video.mp4';
+          videoPlayer.play();
+          console.log("selected",selected);
+        }
+      } catch (error) {
+        console.error('Error executing JAR command:', error);
+      }
     }
-    console.log('users:', users)
-    push('/')
   }
 </script>
 
@@ -30,6 +56,7 @@
                 </center>
               </div>
               <!-- <h4>Hello! let's get started</h4> -->
+              <video src="" id="videoPlayer" controls><track kind="captions"/></video>
               <h6 class="font-weight-bold">Sign in to continue.{currentUser}</h6>
               <form class="pt-3">
                 <div class="form-group">
