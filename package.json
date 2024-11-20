@@ -1,0 +1,22 @@
+{
+  "name": "osiris-desktop-application",
+  "version": "1.0.0",
+  "description": "This is the desktop application for the edtech platform",
+  "main": "main/main.js",
+  "scripts": {
+    "test": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/amrutmaliyes/osiris-desktop-application.git"
+  },
+  "author": "Amrut M",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://gitlab.com/amrutmaliyes/osiris-desktop-application/issues"
+  },
+  "homepage": "https://gitlab.com/amrutmaliyes/osiris-desktop-application#readme",
+  "dependencies": {
+    "electron": "^33.2.0"
+  }
+}
