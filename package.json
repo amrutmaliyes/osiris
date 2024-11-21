@@ -1,22 +1,48 @@
 {
-  "name": "osiris-desktop-application",
+  "name": "osiris-desktop",
+  "productName": "osiris-desktop",
   "version": "1.0.0",
-  "description": "This is the desktop application for the edtech platform",
-  "main": "main/main.js",
+  "description": "My Electron application description",
+  "main": ".webpack/main",
   "scripts": {
-    "test": "npm run test"
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://gitlab.com/amrutmaliyes/osiris-desktop-application.git"
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-react": "^7.25.9",
+    "@electron-forge/cli": "^7.5.0",
+    "@electron-forge/maker-deb": "^7.5.0",
+    "@electron-forge/maker-rpm": "^7.5.0",
+    "@electron-forge/maker-squirrel": "^7.5.0",
+    "@electron-forge/maker-zip": "^7.5.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.5.0",
+    "@electron-forge/plugin-fuses": "^7.5.0",
+    "@electron-forge/plugin-webpack": "^7.5.0",
+    "@electron/fuses": "^1.8.0",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
+    "babel-loader": "^9.2.1",
+    "css-loader": "^6.11.0",
+    "electron": "33.2.0",
+    "node-loader": "^2.1.0",
+    "postcss": "^8.4.49",
+    "postcss-preset-mantine": "^1.17.0",
+    "postcss-simple-vars": "^7.0.1",
+    "style-loader": "^3.3.4"
   },
-  "author": "Amrut M",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://gitlab.com/amrutmaliyes/osiris-desktop-application/issues"
+  "keywords": [],
+  "author": {
+    "name": "Amrut M"
   },
-  "homepage": "https://gitlab.com/amrutmaliyes/osiris-desktop-application#readme",
+  "license": "MIT",
   "dependencies": {
-    "electron": "^33.2.0"
+    "@mantine/core": "^7.14.1",
+    "@mantine/hooks": "^7.14.1",
+    "electron-squirrel-startup": "^1.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
