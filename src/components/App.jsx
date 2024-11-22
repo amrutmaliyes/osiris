@@ -13,6 +13,7 @@ import Account from "./Account.jsx";
 import Users from "./Users.jsx";
 import Report  from "./Report.jsx"
 import Support from "./Support.jsx"
+import FeatureCard from "./FeatureCard.jsx";
 
 const App = () => {
   return (
@@ -31,7 +32,7 @@ const App = () => {
         <Route path="/Users" element={<Users />} />
         <Route path="/Report" element={<Report />} />
         <Route path="/Support" element={<Support />} />
-
+        <Route path="/FeatureCard" element={<FeatureCard />} />
 
 
 

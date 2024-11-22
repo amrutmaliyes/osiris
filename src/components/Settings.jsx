@@ -9,7 +9,7 @@ const Settings = () => {
       <Sidebar />
 
       {/* Welcome Content */}
-      <div style={{ marginLeft: '240px', padding: '20px' }}>
+      <div style={{  padding: '20px' }}>
         <h1>Welcome to the settings !</h1>
         <p>Here you can explore various features.</p>
       </div>
