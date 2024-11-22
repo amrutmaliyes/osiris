@@ -1,86 +1,190 @@
-import React from "react";
+import React, { useState } from "react";
 import Sidebar from "./Sidebar.jsx";
-import { Card, Image, Text, Badge, Button, Group, Breadcrumbs, Anchor, Container } from "@mantine/core";
+import {
+  Text,
+  Breadcrumbs,
+  Anchor,
+  Container,
+  TextInput,
+  Textarea,
+  Button,
+  Group,
+  Box,
+  Title,
+} from "@mantine/core";
 
 const Support = () => {
+  // Form state
+  const [formData, setFormData] = useState({
+    institute: "",
+    name: "",
+    phone: "",
+    email: "",
+    complaint: "",
+  });
+
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  // Handle form submission
+  const handleSubmit = () => {
+    // Add your form submission logic here
+    console.log(formData);
+  };
+
   // Breadcrumb items
-  const breadcrumbItems = [
-    { title: "Support", href: "/" },
-    { title: "Dashboard", href: "/dashboard" },
-  ].map((item, index) => (
-    <Anchor href={item.href} key={index}>
-      {item.title}
-    </Anchor>
-  ));
+  const breadcrumbItems = [{ title: "Support", href: "/" }].map(
+    (item, index) => (
+      <Anchor href={item.href} key={index}>
+        {item.title}
+      </Anchor>
+    )
+  );
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Welcome Content */}
-      <div style={{ marginLeft: "240px", padding: "20px", flex: 1 }}>
-        {/* Breadcrumbs */}
+      <div style={{ padding: "20px", flex: 1 }}>
         <Breadcrumbs mb="lg">{breadcrumbItems}</Breadcrumbs>
 
-      
+        <Container size="lg">
+          {/* Contact Form Section */}
+          <Box mb={50}>
+            <Title order={1} color="gray.7" mb={50}>
+              CONTACT DETAILS
+            </Title>
 
-        {/* Cards Section */}
-        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "20px" }}>
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Card.Section>
-              <Image src="https://via.placeholder.com/150" height={160} alt="Card 1" />
-            </Card.Section>
-            <Group position="apart" mt="md" mb="xs">
-              <Text weight={500}>Feature 1</Text>
-              <Badge color="pink" variant="light">
-                New
-              </Badge>
-            </Group>
-            <Text size="sm" color="dimmed">
-              Learn more about Feature 1 and explore its capabilities.
-            </Text>
-            <Button variant="light" color="pink" fullWidth mt="md" radius="md">
-              Explore Feature 1
-            </Button>
-          </Card>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+              }}
+            >
+              <div style={{ marginBottom: "50px" }}>
+                <TextInput
+                  label="Institute"
+                  placeholder="Enter institute name"
+                  value={formData.institute}
+                  onChange={(e) =>
+                    handleInputChange("institute", e.target.value)
+                  }
+                  styles={{
+                    input: { fontSize: "20px", height: "50px" },
+                    label: {
+                      fontSize: "25px",
+                      fontWeight: 400,
+                      marginBottom: "8px",
+                    },
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: "50px" }}>
+                <TextInput
+                  label="Name"
+                  placeholder="Enter your name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  styles={{
+                    input: { fontSize: "20px", height: "50px" },
+                    label: {
+                      fontSize: "25px",
+                      fontWeight: 400,
+                      marginBottom: "8px",
+                    },
+                  }}
+                />
+              </div>
 
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Card.Section>
-              <Image src="https://via.placeholder.com/150" height={160} alt="Card 2" />
-            </Card.Section>
-            <Group position="apart" mt="md" mb="xs">
-              <Text weight={500}>Feature 2</Text>
-              <Badge color="green" variant="light">
-                Updated
-              </Badge>
-            </Group>
-            <Text size="sm" color="dimmed">
-              Discover the updated features and how they can help you.
-            </Text>
-            <Button variant="light" color="green" fullWidth mt="md" radius="md">
-              Explore Feature 2
-            </Button>
-          </Card>
+              <div style={{ marginBottom: "50px" }}>
+                <TextInput
+                  label="Phone"
+                  placeholder="Enter phone number"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  styles={{
+                    input: { fontSize: "20px", height: "50px" },
+                    label: {
+                      fontSize: "25px",
+                      fontWeight: 400,
+                      marginBottom: "8px",
+                    },
+                  }}
+                />
+              </div>
 
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Card.Section>
-              <Image src="https://via.placeholder.com/150" height={160} alt="Card 3" />
-            </Card.Section>
-            <Group position="apart" mt="md" mb="xs">
-              <Text weight={500}>Feature 3</Text>
-              <Badge color="blue" variant="light">
-                Coming Soon
-              </Badge>
+              <div style={{ marginBottom: "50px" }}>
+                <TextInput
+                  label="Email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  styles={{
+                    input: { fontSize: "20px", height: "50px" },
+                    label: {
+                      fontSize: "25px",
+                      fontWeight: 400,
+                      marginBottom: "8px",
+                    },
+                  }}
+                />
+              </div>
+            </div>
+
+            <TextInput
+              label="Complaint"
+              placeholder="Enter your complaint"
+              mt="md"
+              value={formData.complaint}
+              onChange={(e) => handleInputChange("complaint", e.target.value)}
+              styles={{
+                input: { fontSize: "20px", height: "50px" },
+                label: {
+                  fontSize: "25px",
+                  fontWeight: 400,
+                  marginBottom: "8px",
+                },
+              }}
+            />
+
+            <Group position="center" mt={50}>
+              <Button
+                color="blue"
+                size="xl" // Use a larger predefined size
+                onClick={handleSubmit}
+                // sx={{ minWidth: 800 }}
+                styles={{
+                  root: {
+                    fontSize: "24px", // Text size
+                    height: "60px", // Button height
+                    padding: "8px 10px", // Inner padding
+                    minWidth: "300px", // Custom minimum width
+                  },
+                }}
+              >
+                Submit
+              </Button>
             </Group>
-            <Text size="sm" color="dimmed">
-              A sneak peek at upcoming features for your dashboard.
+          </Box>
+
+          {/* Contact Information Section */}
+          {/* <Box mt={50}>
+            <Title order={4} mb={20}>
+              Contact US
+            </Title>
+            <Text size="sm" color="gray.7">
+              Inon Technologies Private Limited, Office : No.750, 1st Floor,
+              33rd
+              <br />
+              A Cross, 9th Main Rd, 4th Block, Jayanagar, Bengaluru, Karnataka
+              <br />
+              560011.
             </Text>
-            <Button variant="light" color="blue" fullWidth mt="md" radius="md">
-              Explore Feature 3
-            </Button>
-          </Card>
-        </div>
+          </Box> */}
+        </Container>
       </div>
     </div>
   );
