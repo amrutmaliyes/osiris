@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   TextInput,
   Button,
@@ -9,19 +9,49 @@ import {
   Box,
   Text,
 } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
+import banner from "../assets/banner.png"; // Import the image
+import bg from "../assets/bg2.jpg"; // Import the image
 
-const Login = ({ onSwitch }) => {
+const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+
+    if (email === "admin@gmail.com" && password === "1234") {
+      navigate("/Home");
+    } else {
+      setError("Invalid email or password");
+    }
+  };
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
         position: "relative",
-
-        backgroundImage: "url('../assets/background.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        overflow: "hidden", // Ensures content doesn't overflow the box
       }}
     >
+      {/* Background Image */}
+      <img
+        src={bg}
+        alt="Background"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover", // Ensures the image covers the container
+          zIndex: -1, // Places the image behind other content
+        }}
+      />
+
       <Container size={600} sx={{ margin: 0 }}>
         <Paper
           radius="md"
@@ -34,35 +64,37 @@ const Login = ({ onSwitch }) => {
           }}
         >
           {/* Logo */}
-          <Image
-            src="../assets/banner.png"
-            alt="FutureClass Logo"
-            width={150}
-            mx="auto"
-            mb={40}
-          />
+          <Box style={{ marginLeft: "180px" }}>
+            <Image src={banner} alt="FutureClass Logo" h={50} w="auto" fit="contain" />
+          </Box>
 
           {/* Title */}
           <Title
-            order={1}
+            order={4}
             align="center"
             mb={50}
             c="pink"
             sx={{
-              fontSize: "2.5rem",
+              fontSize: "25px",
               fontWeight: 600,
             }}
           >
             Login
           </Title>
+
           {/* Form */}
-          <form>
+          <form onSubmit={handleLogin}>
             <TextInput
               placeholder="Email"
               size="md"
               mb={20}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               styles={{
                 input: {
+                  backgroundColor: "white",
+                  border: "1px solid #eee",
+                  borderRadius: "8px",
                   height: "50px",
                   fontSize: "1rem",
                 },
@@ -74,19 +106,30 @@ const Login = ({ onSwitch }) => {
               type="password"
               size="md"
               mb={30}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               styles={{
                 input: {
+                  backgroundColor: "white",
+                  border: "1px solid #eee",
+                  borderRadius: "8px",
                   height: "50px",
                   fontSize: "1rem",
                 },
               }}
             />
 
+            {error && (
+              <Text align="center" color="red" mb={15}>
+                {error}
+              </Text>
+            )}
+
             <Button
               fullWidth
               size="lg"
               color="pink"
-              mb={15}
+              type="submit"
               sx={{
                 height: "50px",
                 fontSize: "1.1rem",

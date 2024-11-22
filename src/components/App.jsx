@@ -5,6 +5,14 @@ import ProductActivation from "./ProductActivation.jsx";
 import ActivationForm from "./ActivationForm.jsx";
 import ActivationDetails from "./ActivationDetails.jsx";
 import Login from "./Login.jsx";
+import Home from "./Home.jsx";
+import Settings from "./Settings.jsx";
+import Sidebar from "./Sidebar.jsx";
+import Security from "./Security.jsx"
+import Account from "./Account.jsx";
+import Users from "./Users.jsx";
+import Report  from "./Report.jsx"
+import Support from "./Support.jsx"
 
 const App = () => {
   return (
@@ -15,6 +23,19 @@ const App = () => {
         <Route path="/activation-details" element={<ActivationDetails />} />
         <Route path="/activation-form" element={<ActivationForm />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/Home" element={<Home />} />
+        <Route path="/Settings" element={<Settings />} />
+        <Route path="/sidebar" element={<Sidebar />} />
+        <Route path="/Security" element={<Security />} />
+        <Route path="/Account" element={<Account />} />
+        <Route path="/Users" element={<Users />} />
+        <Route path="/Report" element={<Report />} />
+        <Route path="/Support" element={<Support />} />
+
+
+
+
+
       </Routes>
     </HashRouter>
   );
