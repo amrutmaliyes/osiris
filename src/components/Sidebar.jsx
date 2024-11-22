@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconGauge, IconFingerprint, IconActivity } from '@tabler/icons-react';
+import { IconSettings,IconUser, IconFileReport,IconHeadphones, IconActivity,IconHome ,IconLogout} from '@tabler/icons-react';
 import { Box, NavLink, Text } from '@mantine/core';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -11,13 +11,13 @@ const Sidebar = () => {
   const username = "John"; 
 
   const data = [
-    { icon: IconGauge, label: 'HOME', path: '/Home' },
+    { icon: IconHome, label: 'HOME', path: '/Home' },
     { icon: IconActivity, label: 'ACCOUNT', path: '/Account' },
-    { icon: IconFingerprint, label: 'USERS', path: '/Users' },
-    { icon: IconActivity, label: 'REPORT', path: '/Report' },
-    { icon: IconActivity, label: 'SETTING', path: '/settings' },
-    { icon: IconActivity, label: 'SUPPORT', path: '/Support' },
-    { icon: IconActivity, label: 'LOGOUT', path: '/login' },
+    { icon: IconUser, label: 'USERS', path: '/Users' },
+    { icon: IconFileReport, label: 'REPORT', path: '/Report' },
+    { icon: IconSettings, label: 'SETTING', path: '/settings' },
+    { icon: IconHeadphones, label: 'SUPPORT', path: '/Support' },
+    { icon: IconLogout, label: 'LOGOUT', path: '/login' },
   ];
 
   const items = data.map((item) => (
