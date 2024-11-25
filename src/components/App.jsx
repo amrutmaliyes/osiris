@@ -8,11 +8,11 @@ import Login from "./Login.jsx";
 import Home from "./Home.jsx";
 import Settings from "./Settings.jsx";
 import Sidebar from "./Sidebar.jsx";
-import Security from "./Security.jsx"
+import Security from "./Security.jsx";
 import Account from "./Account.jsx";
 import Users from "./Users.jsx";
-import Report  from "./Report.jsx"
-import Support from "./Support.jsx"
+import Report from "./Report.jsx";
+import Support from "./Support.jsx";
 import FeatureCard from "./FeatureCard.jsx";
 
 const App = () => {
@@ -33,10 +33,6 @@ const App = () => {
         <Route path="/Report" element={<Report />} />
         <Route path="/Support" element={<Support />} />
         <Route path="/FeatureCard" element={<FeatureCard />} />
-
-
-
-
       </Routes>
     </HashRouter>
   );
