@@ -111,11 +111,12 @@ const Users = () => {
 
         <Container size="lg">
           {/* Form Section */}
+
           <Text
             size="xl"
-            fw={900}
-            mb="md"
-            styles={{ root: { fontSize: "60px" } }}
+            fw={800}
+            mb="m"
+            styles={{ root: { fontSize: "50px" } }}
           >
             User
           </Text>
@@ -266,7 +267,13 @@ const Users = () => {
             <>
               <Divider my="xl" />
               <div>
-                <Text size="l" weight={500} mb="x" align="center">
+                <Text
+                  size="lg"
+                  weight={500}
+                  mb="xl"
+                  align="center"
+                  styles={{ root: { fontSize: "35px" } }}
+                >
                   Users
                 </Text>
               </div>
@@ -274,19 +281,67 @@ const Users = () => {
               <Table withBorder>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #ccc" }}>
-                    <th style={{ textAlign: "left", padding: "10px" }}>#</th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>Name</th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
+                      #
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
+                      Name
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
                       Email
                     </th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
                       Mobile
                     </th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>Role</th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
+                      Role
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
                       Department
                     </th>
-                    <th style={{ textAlign: "left", padding: "10px" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        fontSize: "18px",
+                      }}
+                    >
                       Action
                     </th>
                     {/* <th>#</th>
@@ -308,12 +363,24 @@ const Users = () => {
                       <td>{user.mobile}</td>
                       <td>{user.role}</td>
                       <td>{user.department}</td> */}
-                      <td style={{ padding: "10px" }}>{user.id}</td>
-                      <td style={{ padding: "10px" }}>{user.name}</td>
-                      <td style={{ padding: "10px" }}>{user.email}</td>
-                      <td style={{ padding: "10px" }}>{user.mobile}</td>
-                      <td style={{ padding: "10px" }}>{user.role}</td>
-                      <td style={{ padding: "10px" }}>{user.department}</td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.id}
+                      </td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.name}
+                      </td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.email}
+                      </td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.mobile}
+                      </td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.role}
+                      </td>
+                      <td style={{ padding: "10px", fontSize: "18px" }}>
+                        {user.department}
+                      </td>
 
                       <td>
                         <Group spacing={4}>
