@@ -42,9 +42,9 @@
   "dependencies": {
     "@electron/remote": "^2.1.2",
     "@emotion/react": "^11.13.5",
-    "@mantine/core": "^7.14.1",
+    "@mantine/core": "^7.14.2",
     "@mantine/dates": "^7.14.2",
-    "@mantine/hooks": "^7.14.1",
+    "@mantine/hooks": "^7.14.2",
     "@mantine/notifications": "^7.14.1",
     "@mui/icons-material": "^6.1.8",
     "@tabler/icons-react": "^3.22.0",
