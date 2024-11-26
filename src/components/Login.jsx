@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import banner from "../assets/banner.png"; // Import the image
-import bg from "../assets/bg2.jpg"; // Import the image
+import bg from "../assets/bg4.jpg"; // Import the image
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -45,8 +45,10 @@ const Login = () => {
           position: "absolute",
           top: 0,
           left: 0,
+          // width: "auto",
           width: "100%",
           height: "100%",
+          // height: "auto",
           objectFit: "cover", // Ensures the image covers the container
           zIndex: -1, // Places the image behind other content
         }}
@@ -65,7 +67,13 @@ const Login = () => {
         >
           {/* Logo */}
           <Box style={{ marginLeft: "180px" }}>
-            <Image src={banner} alt="FutureClass Logo" h={50} w="auto" fit="contain" />
+            <Image
+              src={banner}
+              alt="FutureClass Logo"
+              h={50}
+              w="auto"
+              fit="contain"
+            />
           </Box>
 
           {/* Title */}
