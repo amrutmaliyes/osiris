@@ -18,11 +18,11 @@ const Sidebar = () => {
   const styles = {
     navbar: {
       width: "80px",
-      height: "100vh",
+      // height: "100vh",
       padding: "16px",
       display: "flex",
       flexDirection: "column",
-      backgroundColor: "#228be6", // Mantine blue.6
+      backgroundColor: "white", // Mantine blue.6
     },
 
     navbarMain: {
@@ -37,7 +37,7 @@ const Sidebar = () => {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      color: "white",
+      color: "black",
       opacity: 0.85,
       transition: "all 0.2s",
       "&:hover": {
@@ -48,15 +48,15 @@ const Sidebar = () => {
 
     activeLink: {
       opacity: 1,
-      backgroundColor: "white",
-      color: "#228be6",
+      backgroundColor: "#E78728",
+      color: "#fff",
     },
 
     logo: {
       width: "40px",
       height: "40px",
       borderRadius: "8px",
-      backgroundColor: "white",
+      backgroundColor: "green",
       color: "#228be6",
       display: "flex",
       alignItems: "center",
@@ -89,6 +89,7 @@ const Sidebar = () => {
     { icon: IconFileReport, label: "REPORT", path: "/Report" },
     { icon: IconSettings, label: "SETTING", path: "/settings" },
     { icon: IconHeadphones, label: "SUPPORT", path: "/Support" },
+    { icon: IconLogout, label: "LOGOUT", path: "/loGIN" },
   ];
 
   const links = data.map((link) => (
@@ -112,13 +113,13 @@ const Sidebar = () => {
         </Stack>
       </div>
 
-      <Stack justify="center" gap={0}>
+      {/* <Stack justify="center" gap={0}>
         <NavbarLink
           icon={IconLogout}
           label="Logout"
           onClick={() => navigate("/login")}
         />
-      </Stack>
+      </Stack> */}
     </nav>
   );
 };

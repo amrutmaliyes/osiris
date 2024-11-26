@@ -17,29 +17,37 @@ root.render(
           "#FF8FB8",
           "#FF679F",
           "#FF3385",
-          "#E91E63", // Your main pink color
+          "#E91E63",
           "#D81557",
           "#BF134E",
           "#A61144",
           "#8C0F3A",
         ],
-        // Adding yellow color palette
-        yellow: [
-          "#FFF8E1",
-          "#FFECB3",
-          "#FFE082",
-          "#FFD54F",
-          "#FFCA28",
-          "#FFC107",
-          "#FFB300",
-          "#FFA000",
-          "#FF8F00",
-          "#FF6F00",
+        orange: [
+          "#FFF3E0",
+          "#FFE0B2",
+          "#FFCC80",
+          "#FFB74D",
+          "#FFA726",
+          "#E78728",
+          "#D67321",
+          "#C46A1B",
+          "#B36215",
+          "#A1580F",
         ],
       },
-      primaryColor: "brand",
+      primaryColor: "orange",
+      components: {
+        Button: {
+          defaultProps: {
+            color: "orange",
+          },
+        },
+      },
     }}
   >
-    <App />
+    <div style={{ backgroundColor: "#172c35", minHeight: "100vh" }}>
+      <App />
+    </div>
   </MantineProvider>
 );

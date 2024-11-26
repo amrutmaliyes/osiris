@@ -84,7 +84,6 @@ const Home = () => {
       style={{
         display: "flex",
         minHeight: "100vh",
-        backgroundColor: "#f8f9fa",
       }}
     >
       <Sidebar />
