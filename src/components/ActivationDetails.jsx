@@ -10,7 +10,7 @@ import {
   Paper,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-
+import banner from "../assets/banner.png"
 const ActivationDetails = () => {
   const navigate = useNavigate();
   const [activationCode, setActivationCode] = useState("");
@@ -91,9 +91,10 @@ const ActivationDetails = () => {
             }}
           >
             <Image
-              src="../assets/banner.png"
+              src={banner}
               alt="FutureClass Logo"
-              width={150}
+              width={120}   // Adjust the width to your desired value
+              height={50}
               fit="contain"
             />
           </Box>
@@ -102,7 +103,7 @@ const ActivationDetails = () => {
             order={1}
             align="center"
             mb={50}
-            c="pink"
+            c="black"
             sx={{
               fontSize: "2.5rem",
               fontWeight: 600,
@@ -133,7 +134,7 @@ const ActivationDetails = () => {
             <Button
               fullWidth
               size="lg"
-              color="pink"
+              color="#E78728"
               mb={15}
               type="submit"
               sx={{

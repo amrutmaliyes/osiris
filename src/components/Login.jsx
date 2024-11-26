@@ -81,10 +81,11 @@ const Login = () => {
             order={4}
             align="center"
             mb={50}
-            c="pink"
+            c="#E78728"
             sx={{
               fontSize: "25px",
               fontWeight: 600,
+           
             }}
           >
             Login
@@ -136,7 +137,7 @@ const Login = () => {
             <Button
               fullWidth
               size="lg"
-              color="pink"
+              color="#E78728"
               type="submit"
               sx={{
                 height: "50px",
