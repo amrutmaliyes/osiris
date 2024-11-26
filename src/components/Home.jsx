@@ -4,7 +4,7 @@ import { Breadcrumbs, Anchor, Title, Paper } from "@mantine/core";
 import Sidebar from "./Sidebar.jsx";
 import SubjectContent from "./SubjectContent.jsx";
 import { useNavigate } from "react-router-dom";
-
+import  image from "../assets/notes.jpeg"
 const Home = () => {
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -163,40 +163,75 @@ const Home = () => {
         {!selectedClass ? (
           // Display class cards
           <div>
-            <Title order={2} mb="lg">
+            <Title order={2} mb="lg" style={{color:"white"}}>
               Select Class
             </Title>
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: "20px",
+                gap: "70px",
                 padding: "20px",
+                height:"600px",
+               
               }}
             >
+            
               {Array.from({ length: 10 }, (_, i) => (
-                <Paper
-                  key={i}
-                  onClick={() => handleClassClick(i + 1)}
-                  shadow="sm"
-                  p="xl"
-                  style={{
-                    cursor: "pointer",
-                    textAlign: "center",
-                    transition: "transform 0.2s, box-shadow 0.2s",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = "translateY(-5px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 4px 15px rgba(0,0,0,0.1)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "";
-                  }}
-                >
-                  <h2 style={{ margin: 0 }}>Class {i + 1}</h2>
-                </Paper>
+               <Paper
+               key={i}
+               onClick={() => handleClassClick(i + 1)}
+               shadow="sm"
+               p="xl"
+               style={{
+                 cursor: "pointer",
+                 textAlign: "center",
+                 position: "relative",
+                 transition: "transform 0.2s, box-shadow 0.2s",
+                 width: "280px", 
+                 height: "200px", 
+                 borderRadius: "25px",
+                 overflow: "hidden", 
+
+                 
+               }}
+               onMouseOver={(e) => {
+                 e.currentTarget.style.transform = "translateY(-5px)";
+                 e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,0.1)";
+               }}
+               onMouseOut={(e) => {
+                 e.currentTarget.style.transform = "translateY(0)";
+                 e.currentTarget.style.boxShadow = "";
+               }}
+             >
+               <img
+                 src={image}
+                 alt={`Class ${i + 1} background`}
+                 style={{
+                   position: "absolute",
+                   top: 0,
+                   left: 0,
+                   width: "100%",
+                   height: "100%",
+                   objectFit: "cover",
+                   zIndex: 1,
+                  
+
+                 }}
+               />
+               <div
+                 style={{
+                   position: "relative",
+                   zIndex: 2,
+                   color: "white",
+                   textShadow: "1px 1px 3px rgba(0,0,0,0.5)",
+                   paddingBottom: "15px",
+                 }}
+               >
+                 <h2 style={{ color:"black",top:"80px" }}>Class {i + 1}</h2>
+               </div>
+             </Paper>
+             
               ))}
             </div>
           </div>
