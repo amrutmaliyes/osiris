@@ -54,7 +54,7 @@ const Sidebar = () => {
     },
 
     logo: {
-      width: "50px",
+      width: "60px",
       height: "auto",
       borderRadius: "4px",
       display: "flex",
