@@ -22,18 +22,41 @@ const Home = () => {
   ];
 
   const getBreadcrumbItems = () => {
-    const items = [{ title: "Home", href: "/Home" }];
+    const items = [
+      {
+        title: "Home",
+        onClick: () => {
+          setSelectedClass(null);
+          setSelectedSubject(null);
+        },
+      },
+    ];
 
     if (selectedClass) {
-      items.push({ title: `Class ${selectedClass}`, href: "#" });
+      items.push({
+        title: `Class ${selectedClass}`,
+        onClick: () => {
+          setSelectedSubject(null);
+        },
+      });
     }
 
     if (selectedSubject) {
-      items.push({ title: selectedSubject, href: "#" });
+      items.push({
+        title: selectedSubject,
+        onClick: () => {}, // No action needed for last item
+      });
     }
 
     return items.map((item, index) => (
-      <Anchor href={item.href} key={index} style={{ textDecoration: "none" }}>
+      <Anchor
+        key={index}
+        onClick={item.onClick}
+        style={{
+          textDecoration: "none",
+          cursor: "pointer",
+        }}
+      >
         {item.title}
       </Anchor>
     ));
