@@ -9,6 +9,7 @@ import {
   Image,
   Box,
 } from "@mantine/core";
+import banner  from "../assets/banner.png";
 
 const ProductActivation = () => {
   const navigate = useNavigate();
@@ -47,9 +48,10 @@ const ProductActivation = () => {
             }}
           >
             <Image
-              src="../assets/banner.png"
+              src={banner}
               alt="FutureClass Logo"
-              width={150}
+              width={120}   // Adjust the width to your desired value
+              height={50}   // Adjust the height to your desired value
               fit="contain"
             />
           </Box>
@@ -58,7 +60,6 @@ const ProductActivation = () => {
             order={1}
             align="center"
             mb={50}
-            c="pink"
             sx={{
               fontSize: "2.5rem",
               fontWeight: 600,
@@ -70,7 +71,7 @@ const ProductActivation = () => {
           <Stack spacing="xl">
             <Button
               size="xl"
-              color="pink"
+              color="#E78728"
               h={60}
               onClick={() => navigate("/activation-details")}
               styles={{
@@ -85,7 +86,7 @@ const ProductActivation = () => {
 
             <Button
               size="xl"
-              color="pink"
+              color="#E78728"
               h={60}
               onClick={() => navigate("/activation-form")}
               styles={{
