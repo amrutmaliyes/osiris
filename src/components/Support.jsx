@@ -152,7 +152,7 @@ const Support = () => {
 
             <Group position="center" mt={50}>
               <Button
-                color="pink"
+                color="#E78728"
                 size="xl" // Use a larger predefined size
                 onClick={handleSubmit}
                 // sx={{ minWidth: 800 }}

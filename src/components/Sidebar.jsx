@@ -10,6 +10,7 @@ import {
 } from "@tabler/icons-react";
 import { Center, Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import { useNavigate, useLocation } from "react-router-dom";
+import logo from "../assets/banner.png"; // Adjust the path as needed
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -53,16 +54,12 @@ const Sidebar = () => {
     },
 
     logo: {
-      width: "40px",
-      height: "40px",
-      borderRadius: "8px",
-      backgroundColor: "green",
-      color: "#228be6",
+      width: "50px",
+      height: "auto",
+      borderRadius: "4px",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontWeight: 700,
-      fontSize: "20px",
     },
   };
 
@@ -104,7 +101,8 @@ const Sidebar = () => {
   return (
     <nav style={styles.navbar}>
       <Center>
-        <div style={styles.logo}>M</div>
+        <img src={logo} alt="Logo" style={styles.logo} />
+        {/* <div style={styles.logo}>M</div> */}
       </Center>
 
       <div style={styles.navbarMain}>

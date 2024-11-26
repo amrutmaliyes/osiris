@@ -62,6 +62,7 @@ const Account = () => {
             size="xl"
             fw={800}
             mb="m"
+            // color="white"
             styles={{ root: { fontSize: "50px" } }}
           >
             Accounts

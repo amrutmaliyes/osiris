@@ -1,8 +1,33 @@
 import React, { useState } from "react";
-import { Paper, Title, Text, Accordion, Button, Group } from "@mantine/core";
+import {
+  Paper,
+  Title,
+  Text,
+  Accordion,
+  Button,
+  Group,
+  Progress,
+} from "@mantine/core";
 
 const SubjectContent = ({ subject, classNumber }) => {
   const [selectedChapter, setSelectedChapter] = useState(null);
+
+  // Mock progress data - replace with real data later
+  const chapterProgress = {
+    Math: {
+      "Chapter 1: Real Numbers": 75,
+      "Chapter 2: Polynomials": 30,
+      "Chapter 3: Pair of Linear Equations": 0,
+    },
+    Physics: {
+      "Chapter 1: Light - Reflection and Refraction": 60,
+      "Chapter 2: Electricity": 25,
+    },
+    Chemistry: {
+      "Chapter 1: Chemical Reactions and Equations": 90,
+      "Chapter 2: Acids, Bases and Salts": 45,
+    },
+  };
 
   // Content structure for each subject
   const subjectContent = {
@@ -90,24 +115,6 @@ const SubjectContent = ({ subject, classNumber }) => {
         {subject} - Class {classNumber}
       </Title>
 
-      {/* Overview Section */}
-      <Paper shadow="sm" p="md" mb="lg">
-        <Group position="apart" mb="md">
-          <Title order={3}>Quick Access</Title>
-          <Group>
-            <Button variant="light" color="blue" size="sm">
-              Study Material
-            </Button>
-            <Button variant="light" color="green" size="sm">
-              Practice Questions
-            </Button>
-            <Button variant="light" color="orange" size="sm">
-              Take Test
-            </Button>
-          </Group>
-        </Group>
-      </Paper>
-
       {/* Chapters Section */}
       <Paper shadow="sm" p="md">
         <Title order={3} mb="lg">
@@ -122,7 +129,24 @@ const SubjectContent = ({ subject, classNumber }) => {
           {currentSubject.chapters.map((chapter, index) => (
             <Accordion.Item key={index} value={chapter.title}>
               <Accordion.Control>
-                <Text fw={500}>{chapter.title}</Text>
+                <div style={{ width: "100%" }}>
+                  <Group position="apart" mb={8}>
+                    <Text fw={500}>{chapter.title}</Text>
+                    <Text size="sm" color="dimmed">
+                      {chapterProgress[subject]?.[chapter.title] || 0}% Complete
+                    </Text>
+                  </Group>
+                  <Progress
+                    value={chapterProgress[subject]?.[chapter.title] || 0}
+                    size="sm"
+                    radius="xl"
+                    color={
+                      chapterProgress[subject]?.[chapter.title] === 100
+                        ? "green"
+                        : "orange"
+                    }
+                  />
+                </div>
               </Accordion.Control>
               <Accordion.Panel>
                 <div
@@ -148,16 +172,16 @@ const SubjectContent = ({ subject, classNumber }) => {
                         e.currentTarget.style.backgroundColor = "transparent";
                       }}
                     >
-                      <Group position="apart">
+                      <Group position="apart" style={{ width: "100%" }}>
                         <Text size="sm">{topic}</Text>
-                        <Group spacing="xs">
-                          <Button variant="subtle" size="xs" color="blue">
-                            Learn
-                          </Button>
-                          <Button variant="subtle" size="xs" color="green">
-                            Practice
-                          </Button>
-                        </Group>
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          color="orange"
+                          style={{ marginLeft: "auto" }}
+                        >
+                          watch
+                        </Button>
                       </Group>
                     </Paper>
                   ))}
@@ -166,24 +190,6 @@ const SubjectContent = ({ subject, classNumber }) => {
             </Accordion.Item>
           ))}
         </Accordion>
-      </Paper>
-
-      {/* Progress Section */}
-      <Paper shadow="sm" p="md" mt="lg">
-        <Group position="apart">
-          <div>
-            <Title order={3} mb="xs">
-              Your Progress
-            </Title>
-            <Text color="dimmed" size="sm">
-              Track your learning journey and complete chapters to earn
-              achievements
-            </Text>
-          </div>
-          <Button variant="light" color="grape">
-            View Detailed Progress
-          </Button>
-        </Group>
       </Paper>
     </div>
   );
