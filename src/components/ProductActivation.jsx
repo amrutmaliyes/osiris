@@ -9,7 +9,7 @@ import {
   Image,
   Box,
 } from "@mantine/core";
-import banner  from "../assets/banner.png";
+import banner  from "../assets/lactive1.png";
 
 const ProductActivation = () => {
   const navigate = useNavigate();

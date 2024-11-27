@@ -10,7 +10,7 @@ import {
 } from "@tabler/icons-react";
 import { Center, Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import { useNavigate, useLocation } from "react-router-dom";
-import logo from "../assets/banner.png"; // Adjust the path as needed
+import logo from "../assets/lactive1.png"; // Adjust the path as needed
 
 const Sidebar = () => {
   const navigate = useNavigate();
