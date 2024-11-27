@@ -23,6 +23,10 @@ const Login = () => {
     e.preventDefault();
 
     if (email === "admin@gmail.com" && password === "1234") {
+      localStorage.setItem("userType", "admin");
+      navigate("/Home");
+    } else if (email === "teacher@gmail.com" && password === "1234") {
+      localStorage.setItem("userType", "teacher");
       navigate("/Home");
     } else {
       setError("Invalid email or password");
