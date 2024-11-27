@@ -10,7 +10,7 @@ import {
   Paper,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import banner from "../assets/lactive1.png"
+import banner from "../assets/lactive1.png";
 const ActivationDetails = () => {
   const navigate = useNavigate();
   const [activationCode, setActivationCode] = useState("");
@@ -58,105 +58,107 @@ const ActivationDetails = () => {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        position: "relative",
-        backgroundImage: 'url("../assets/mountains.png")',
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Container size={600} sx={{ margin: 0 }}>
-        <Paper
-          radius="md"
-          p={50}
-          withBorder
-          sx={{
-            backgroundColor: "rgba(255, 255, 255, 0.95)",
-            border: "1px solid #e0e0e0",
-            boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <Box
+    <div style={{ marginTop: "10%" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          position: "relative",
+          backgroundImage: 'url("../assets/mountains.png")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Container size={600} sx={{ margin: 0 }}>
+          <Paper
+            radius="md"
+            p={50}
+            withBorder
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 40,
+              backgroundColor: "rgba(255, 255, 255, 0.95)",
+              border: "1px solid #e0e0e0",
+              boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
             }}
           >
-            <Image
-              src={banner}
-              alt="FutureClass Logo"
-              width={120}   // Adjust the width to your desired value
-              height={50}
-              fit="contain"
-            />
-          </Box>
-
-          <Title
-            order={1}
-            align="center"
-            mb={50}
-            c="black"
-            sx={{
-              fontSize: "2.5rem",
-              fontWeight: 600,
-            }}
-          >
-            Activation Details
-          </Title>
-
-          <form onSubmit={handleSubmit}>
-            <TextInput
-              placeholder="Activation Code"
-              size="lg"
-              mb={30}
-              required
-              value={activationCode}
-              onChange={(e) => setActivationCode(e.target.value)}
-              styles={{
-                input: {
-                  height: "55px",
-                  backgroundColor: "white",
-                  border: "1px solid #eee",
-                  borderRadius: "8px",
-                  fontSize: "1.1rem",
-                },
-              }}
-            />
-
-            <Button
-              fullWidth
-              size="lg"
-              color="#E78728"
-              mb={15}
-              type="submit"
+            <Box
               sx={{
-                height: "50px",
-                fontSize: "1.1rem",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 40,
               }}
             >
-              Activate
-            </Button>
+              <Image
+                src={banner}
+                alt="FutureClass Logo"
+                width={120} // Adjust the width to your desired value
+                height={50}
+                fit="contain"
+              />
+            </Box>
 
-            <Button
-              variant="subtle"
-              fullWidth
-              onClick={() => navigate("/")}
-              color="gray"
+            <Title
+              order={1}
+              align="center"
+              mb={50}
+              c="black"
+              sx={{
+                fontSize: "2.5rem",
+                fontWeight: 600,
+              }}
             >
-              Back
-            </Button>
-          </form>
-        </Paper>
-      </Container>
-    </Box>
+              Activation Details
+            </Title>
+
+            <form onSubmit={handleSubmit}>
+              <TextInput
+                placeholder="Activation Code"
+                size="lg"
+                mb={30}
+                required
+                value={activationCode}
+                onChange={(e) => setActivationCode(e.target.value)}
+                styles={{
+                  input: {
+                    height: "55px",
+                    backgroundColor: "white",
+                    border: "1px solid #eee",
+                    borderRadius: "8px",
+                    fontSize: "1.1rem",
+                  },
+                }}
+              />
+
+              <Button
+                fullWidth
+                size="lg"
+                color="#E78728"
+                mb={15}
+                type="submit"
+                sx={{
+                  height: "50px",
+                  fontSize: "1.1rem",
+                }}
+              >
+                Activate
+              </Button>
+
+              <Button
+                variant="subtle"
+                fullWidth
+                onClick={() => navigate("/")}
+                color="gray"
+              >
+                Back
+              </Button>
+            </form>
+          </Paper>
+        </Container>
+      </Box>
+    </div>
   );
 };
 
