@@ -10,12 +10,13 @@ import {
 } from "@tabler/icons-react";
 import { Center, Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import { useNavigate, useLocation } from "react-router-dom";
-import logo from "../assets/banner.png"; // Adjust the path as needed
+import logo from "../assets/lactive1.png"; // Adjust the path as needed
+
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
+  const userType = localStorage.getItem("userType");
   const styles = {
     navbar: {
       width: "80px",
@@ -78,8 +79,7 @@ const Sidebar = () => {
       </Tooltip>
     );
   };
-
-  const data = [
+  const adminNavItems = [
     { icon: IconHome, label: "HOME", path: "/Home" },
     { icon: IconActivity, label: "ACCOUNT", path: "/Account" },
     { icon: IconUser, label: "USERS", path: "/Users" },
@@ -89,7 +89,23 @@ const Sidebar = () => {
     { icon: IconLogout, label: "LOGOUT", path: "/loGIN" },
   ];
 
-  const links = data.map((link) => (
+
+ 
+  const teacherNavItems = [
+  ];
+  // const navItems = userType === "admin" ? adminNavItems : teacherNavItems;
+  const navItems = userType === "admin" ? adminNavItems : [];
+
+
+  // const links = data.map((link) => (
+  //   <NavbarLink
+  //     {...link}
+  //     key={link.label}
+  //     active={location.pathname === link.path}
+  //     onClick={() => navigate(link.path)}
+  //   />
+  // ));
+  const links = navItems.map((link) => (
     <NavbarLink
       {...link}
       key={link.label}
