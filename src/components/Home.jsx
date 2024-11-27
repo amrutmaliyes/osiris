@@ -5,10 +5,13 @@ import Sidebar from "./Sidebar.jsx";
 import SubjectContent from "./SubjectContent.jsx";
 import { useNavigate } from "react-router-dom";
 import  image from "../assets/notes.jpeg"
+import banner from '../assets/banner.png'
 const Home = () => {
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const navigate = useNavigate();
+  const userType = localStorage.getItem("userType");
+
 
   const subjects = [
     { name: "Math", icon: "🧮", color: "#FFE0E0" },
@@ -84,9 +87,51 @@ const Home = () => {
       style={{
         display: "flex",
         minHeight: "100vh",
+        paddingTop:"50px"
       }}
     >
-      <Sidebar />
+       {userType === "admin" ? (
+        <Sidebar />
+      ) : (
+        <div
+          style={{
+            position: "absolute",
+            top: "20px",
+            right: "20px",
+            display: "flex",
+            alignItems: "center",
+            gap: "20px",
+            
+          }}
+        >
+        <img
+  src={banner} // Make sure to import banner at the top
+  alt="Logo"
+  style={{
+    position: "absolute", // Make the image positionable
+    top: "60%",           // Position 50% from the top
+    left: "-580px",          // Position 50% from the left
+    transform: "translate(-50%, -50%)", // Offset by 50% of its width and height
+    width: "160px",
+    height: "auto",
+  }}
+/>
+
+          <button
+            onClick={() => navigate("/login")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              backgroundColor: "#E78528",
+              color: "white",
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      )}
 
       {selectedSubject && (
         <div

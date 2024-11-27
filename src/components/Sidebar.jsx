@@ -92,9 +92,10 @@ const Sidebar = () => {
 
  
   const teacherNavItems = [
-    { icon: IconLogout, label: "LOGOUT", path: "/loGIN" },
   ];
-  const navItems = userType === "admin" ? adminNavItems : teacherNavItems;
+  // const navItems = userType === "admin" ? adminNavItems : teacherNavItems;
+  const navItems = userType === "admin" ? adminNavItems : [];
+
 
   // const links = data.map((link) => (
   //   <NavbarLink
