@@ -10,7 +10,7 @@ import {
   Text,
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
-import banner from "../assets/banner.png"; // Import the image
+import banner from "../assets/lactive1.png"; // Import the image
 import bg from "../assets/bg4.jpg"; // Import the image
 
 const Login = () => {
@@ -44,7 +44,8 @@ const Login = () => {
         style={{
           position: "absolute",
           top: 0,
-          left: 0,
+          left: "-10px", // Shift the image 10px to the left
+
           // width: "auto",
           width: "100%",
           height: "100%",
@@ -66,7 +67,7 @@ const Login = () => {
           }}
         >
           {/* Logo */}
-          <Box style={{ marginLeft: "180px" }}>
+          <Box style={{ marginLeft: "160px" }}> {/* Changed from marginLeft: "180px" */}
             <Image
               src={banner}
               alt="FutureClass Logo"
@@ -81,7 +82,7 @@ const Login = () => {
             order={4}
             align="center"
             mb={50}
-            c="#E78728"
+            c="#"
             sx={{
               fontSize: "25px",
               fontWeight: 600,

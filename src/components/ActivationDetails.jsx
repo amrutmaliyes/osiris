@@ -10,7 +10,7 @@ import {
   Paper,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import banner from "../assets/banner.png"
+import banner from "../assets/lactive1.png"
 const ActivationDetails = () => {
   const navigate = useNavigate();
   const [activationCode, setActivationCode] = useState("");
