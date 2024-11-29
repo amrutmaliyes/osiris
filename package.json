@@ -48,6 +48,7 @@
     "@mantine/notifications": "^7.14.1",
     "@mui/icons-material": "^6.1.8",
     "@tabler/icons-react": "^3.22.0",
+    "better-sqlite3": "^11.6.0",
     "dayjs": "^1.11.13",
     "electron-squirrel-startup": "^1.0.1",
     "install": "^0.13.0",
