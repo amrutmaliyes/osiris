@@ -1,5 +1,6 @@
+const SQLite = require("better-sqlite3");
 const { app, BrowserWindow } = require("electron");
-const path = require("node:path");
+const db = new SQLite("data.db");
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require("electron-squirrel-startup")) {
@@ -18,7 +19,13 @@ const createWindow = () => {
 
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-
+  mainWindow.webContents.once("dom-ready", () => {
+    const tableName = "cats";
+    const createTable = db.prepare(
+      `CREATE TABLE IF NOT EXISTS ${tableName} (name CHAR(20), age INT)`
+    );
+    createTable.run();
+  });
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 };
