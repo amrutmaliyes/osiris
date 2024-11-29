@@ -51,8 +51,8 @@ const ProductActivation = () => {
               <Image
                 src={banner}
                 alt="FutureClass Logo"
-                width={120} // Adjust the width to your desired value
-                height={50} // Adjust the height to your desired value
+                width={120}
+                height={50}
                 fit="contain"
               />
             </Box>
