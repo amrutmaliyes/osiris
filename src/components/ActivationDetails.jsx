@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import {
   TextInput,
   Button,
@@ -9,10 +11,14 @@ import {
   Box,
   Paper,
 } from "@mantine/core";
+
 import { notifications } from "@mantine/notifications";
+
 import banner from "../assets/lactive1.png";
+
 const ActivationDetails = () => {
   const navigate = useNavigate();
+
   const [activationCode, setActivationCode] = useState("");
 
   const validateForm = () => {
@@ -21,40 +27,86 @@ const ActivationDetails = () => {
     if (!activationCode.trim()) {
       errors.push("Activation Code is required");
     } else if (activationCode.length < 6) {
-      // You can adjust the minimum length as needed
       errors.push("Activation Code must be at least 6 characters");
     }
 
     return errors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     const errors = validateForm();
 
     if (errors.length > 0) {
-      // Show error notification
       notifications.show({
         title: "Validation Error",
+
         message: errors.join("\n"),
+
         color: "red",
+
         autoClose: 5000,
       });
+
       return;
     }
 
-    // If validation passes, show success notification and navigate
-    notifications.show({
-      title: "Success",
-      message: "Activation successful!",
-      color: "green",
-      autoClose: 3000,
-    });
+    try {
+      // Get system info
 
-    // Navigate to login after a short delay
-    setTimeout(() => {
-      navigate("/login");
-    }, 1000);
+      const systemInfo = await window.electronAPI.getSystemInfo();
+
+      // Prepare activation data
+
+      const activationData = {
+        activation_key: activationCode,
+
+        serial_number: systemInfo.serialNumber,
+
+        version: "1.0",
+      };
+
+      // Call activation API through IPC
+
+      const result = await window.electronAPI.activateProduct(activationData);
+
+      if (result.success) {
+        notifications.show({
+          title: "Success",
+
+          message: "Activation successful!",
+
+          color: "green",
+
+          autoClose: 3000,
+        });
+
+        setTimeout(() => {
+          navigate("/login");
+        }, 1000);
+      } else {
+        notifications.show({
+          title: "Error",
+
+          message: result.error,
+
+          color: "red",
+
+          autoClose: 5000,
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+
+        message: error.message,
+
+        color: "red",
+
+        autoClose: 5000,
+      });
+    }
   };
 
   return (
@@ -62,13 +114,21 @@ const ActivationDetails = () => {
       <Box
         sx={{
           minHeight: "100vh",
+
           position: "relative",
+
           backgroundImage: 'url("../assets/mountains.png")',
+
           backgroundSize: "cover",
+
           backgroundPosition: "center",
+
           backgroundRepeat: "no-repeat",
+
           display: "flex",
+
           alignItems: "center",
+
           justifyContent: "center",
         }}
       >
@@ -79,22 +139,27 @@ const ActivationDetails = () => {
             withBorder
             sx={{
               backgroundColor: "rgba(255, 255, 255, 0.95)",
+
               border: "1px solid #e0e0e0",
+
               boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
             }}
           >
             <Box
               sx={{
                 display: "flex",
+
                 justifyContent: "center",
+
                 alignItems: "center",
+
                 marginBottom: 40,
               }}
             >
               <Image
                 src={banner}
                 alt="FutureClass Logo"
-                width={120} // Adjust the width to your desired value
+                width={120}
                 height={50}
                 fit="contain"
               />
@@ -107,6 +172,7 @@ const ActivationDetails = () => {
               c="black"
               sx={{
                 fontSize: "2.5rem",
+
                 fontWeight: 600,
               }}
             >
@@ -124,9 +190,13 @@ const ActivationDetails = () => {
                 styles={{
                   input: {
                     height: "55px",
+
                     backgroundColor: "white",
+
                     border: "1px solid #eee",
+
                     borderRadius: "8px",
+
                     fontSize: "1.1rem",
                   },
                 }}
@@ -140,6 +210,7 @@ const ActivationDetails = () => {
                 type="submit"
                 sx={{
                   height: "50px",
+
                   fontSize: "1.1rem",
                 }}
               >

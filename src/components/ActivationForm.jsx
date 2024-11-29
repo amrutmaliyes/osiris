@@ -57,12 +57,11 @@ const ActivationForm = () => {
     return errors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = validateForm();
 
     if (errors.length > 0) {
-      // Show error notification
       notifications.show({
         title: "Validation Error",
         message: errors.join("\n"),
@@ -72,8 +71,53 @@ const ActivationForm = () => {
       return;
     }
 
-    // If validation passes, navigate to login
-    navigate("/login");
+    try {
+      // Get system info
+      const systemInfo = await window.electronAPI.getSystemInfo();
+
+      // Prepare activation data
+      const activationData = {
+        activation_key: formData.productKey,
+        serial_number: systemInfo.serialNumber,
+        version: "1.0", // Add your version number
+        email: formData.email,
+        institutionName: formData.institutionName,
+      };
+      console.log("some data level 1", activationData);
+
+      // Call activation API through IPC
+
+      const result = await window.electronAPI.activateProduct(activationData);
+      console.log(result, "resssssss");
+
+      if (result.success) {
+        notifications.show({
+          title: "Success",
+          message: "Product activated successfully!",
+          color: "green",
+          autoClose: 3000,
+        });
+
+        // Navigate to login after successful activation
+        setTimeout(() => {
+          navigate("/login");
+        }, 1000);
+      } else {
+        notifications.show({
+          title: "Error",
+          message: result.error,
+          color: "red",
+          autoClose: 5000,
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+        autoClose: 5000,
+      });
+    }
   };
 
   const handleChange = (field) => (e) => {
