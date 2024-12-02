@@ -74,11 +74,11 @@ const ActivationForm = () => {
     try {
       // Get system info
       const systemInfo = await window.electronAPI.getSystemInfo();
-
+      console.log(systemInfo, "sisss")
       // Prepare activation data
       const activationData = {
         activation_key: formData.productKey,
-        serial_number: systemInfo.serialNumber,
+        serial_number: "123123123",
         version: "1.0", // Add your version number
         email: formData.email,
         institutionName: formData.institutionName,
@@ -111,6 +111,7 @@ const ActivationForm = () => {
         });
       }
     } catch (error) {
+
       notifications.show({
         title: "Error",
         message: error.message,
