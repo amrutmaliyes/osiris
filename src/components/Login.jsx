@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextInput,
   Button,
@@ -10,26 +10,56 @@ import {
   Text,
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
-import banner from "../assets/lactive1.png"; // Import the image
-import bg from "../assets/bg4.jpg"; // Import the image
+import { notifications } from "@mantine/notifications";
+import banner from "../assets/lactive1.png";
+import bg from "../assets/bg4.jpg";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [userCredentials, setUserCredentials] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const getCredentials = async () => {
+      try {
+        const credentials = await window.electronAPI.getUserCredentials();
+        if (credentials) {
+          setUserCredentials(credentials);
+        }
+      } catch (error) {
+        console.error("Error fetching credentials:", error);
+      }
+    };
+
+    getCredentials();
+  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
 
-    if (email === "admin@gmail.com" && password === "1234") {
+    if (userCredentials && email === userCredentials.username && password === userCredentials.password) {
+      // Admin login successful
       localStorage.setItem("userType", "admin");
-      navigate("/Home");
-    } else if (email === "teacher@gmail.com" && password === "1234") {
-      localStorage.setItem("userType", "teacher");
-      navigate("/Home");
+      localStorage.setItem("userEmail", email);
+      
+      notifications.show({
+        title: "Success",
+        message: "Login successful!",
+        color: "green",
+        autoClose: 2000,
+      });
+
+      navigate("/home");
     } else {
       setError("Invalid email or password");
+      notifications.show({
+        title: "Error",
+        message: "Invalid email or password",
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
@@ -39,24 +69,20 @@ const Login = () => {
         sx={{
           minHeight: "100vh",
           position: "relative",
-          overflow: "hidden", // Ensures content doesn't overflow the box
+          overflow: "hidden",
         }}
       >
-        {/* Background Image */}
         <img
           src={bg}
           alt="Background"
           style={{
             position: "absolute",
             top: 0,
-            left: "-10px", // Shift the image 10px to the left
-
-            // width: "auto",
+            left: "-10px",
             width: "100%",
             height: "100%",
-            // height: "auto",
-            objectFit: "cover", // Ensures the image covers the container
-            zIndex: -1, // Places the image behind other content
+            objectFit: "cover",
+            zIndex: -1,
           }}
         />
 
@@ -71,10 +97,7 @@ const Login = () => {
               boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
             }}
           >
-            {/* Logo */}
             <Box style={{ marginLeft: "160px" }}>
-              {" "}
-              {/* Changed from marginLeft: "180px" */}
               <Image
                 src={banner}
                 alt="FutureClass Logo"
@@ -84,7 +107,6 @@ const Login = () => {
               />
             </Box>
 
-            {/* Title */}
             <Title
               order={4}
               align="center"
@@ -98,7 +120,6 @@ const Login = () => {
               Login
             </Title>
 
-            {/* Form */}
             <form onSubmit={handleLogin}>
               <TextInput
                 placeholder="Email"
@@ -156,6 +177,7 @@ const Login = () => {
 
               <Text
                 align="center"
+                mt={15}
                 color="gray"
                 sx={{
                   cursor: "pointer",

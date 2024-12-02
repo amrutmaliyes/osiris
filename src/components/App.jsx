@@ -17,24 +17,26 @@ import FeatureCard from "./FeatureCard.jsx";
 
 const App = () => {
   const [isActivated, setIsActivated] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  const handleActivationSuccess = () => {
+    setIsActivated(true);
+  };
 
   useEffect(() => {
-    // Check activation status on app load
     const checkActivation = async () => {
-      const activated = await window.electronAPI.checkActivation();
-      setIsActivated(activated);
+      try {
+        const activated = await window.electronAPI.checkActivation();
+        setIsActivated(activated);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     checkActivation();
-
-    // Listen for activation status changes
-    window.electronAPI.onActivationCheck((event, status) => {
-      setIsActivated(status);
-    });
   }, []);
 
-  // Show loading state while checking activation
-  if (isActivated === null) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -42,7 +44,6 @@ const App = () => {
     <HashRouter>
       <Notifications position="top-right" />
       <Routes>
-        {/* Redirect to activation if not activated */}
         <Route
           path="/"
           element={
@@ -53,7 +54,18 @@ const App = () => {
             )
           }
         />
-        {/* Protected routes - only accessible if activated */}
+        
+        <Route
+          path="/activation-form"
+          element={
+            !isActivated ? (
+              <ActivationForm onActivationSuccess={handleActivationSuccess} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        
         <Route
           path="/login"
           element={isActivated ? <Login /> : <Navigate to="/" replace />}
@@ -72,12 +84,6 @@ const App = () => {
             ) : (
               <Navigate to="/login" replace />
             )
-          }
-        />
-        <Route
-          path="/activation-form"
-          element={
-            !isActivated ? <ActivationForm /> : <Navigate to="/login" replace />
           }
         />
 

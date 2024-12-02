@@ -1,10 +1,15 @@
 const SQLite = require("better-sqlite3");
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const si = require("systeminformation");
 const axios = require("axios");
 const path = require("path");
+const fs = require('fs').promises;
+const crypto = require('crypto');
+const os = require('os');
 
 const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
+// const db = new SQLite( "data.db");
+
 const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
 
 if (require("electron-squirrel-startup")) {
@@ -108,22 +113,48 @@ ipcMain.handle("activate-product", async (event, activationData) => {
       `${API_BASE_URL}/product-keys/activation`,
       activationData
     );
+
+    // Only insert into database if activation is successful
     if (response.data.activationStatus === "Active") {
-      const stmt = db.prepare(`
+      const insertActivationStmt = db.prepare(`
         INSERT INTO Activations (
           email, organization_name, serial_mac_id,
           activation_code, start_date, end_date
         ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'))
       `);
-      stmt.run(
-        activationData.email,
-        activationData.institutionName,
-        activationData.serial_number,
-        activationData.activation_key
-      );
+
+      const insertUserStmt = db.prepare(`
+        INSERT INTO Users (
+          username, password, role
+        ) VALUES (?, ?, ?)
+      `);
+
+      // Start a transaction to ensure both inserts succeed or fail together
+      const transaction = db.transaction(() => {
+        insertActivationStmt.run(
+          activationData.email,
+          activationData.institutionName,
+          activationData.serial_number,
+          activationData.activation_key
+        );
+
+        insertUserStmt.run(
+          activationData.email,
+          activationData.password, // Assuming password is already hashed
+          'admin'
+        );
+      });
+
+      transaction();
+
+      // Return the full response data so frontend can check activation status
       return { success: true, data: response.data };
     }
-    return { success: false, error: "Activation failed" };
+
+    return {
+      success: false,
+      error: "Activation failed: Invalid or expired activation key"
+    };
   } catch (error) {
     console.error("Activation error:", error);
     return { success: false, error: error.message };
@@ -134,6 +165,143 @@ ipcMain.handle("check-activation", () => {
   const stmt = db.prepare("SELECT * FROM Activations LIMIT 1");
   const activation = stmt.get();
   return !!activation;
+});
+
+ipcMain.handle("get-activation-credentials", () => {
+  const stmt = db.prepare(`
+    SELECT email, password 
+    FROM Activations 
+    ORDER BY created_at DESC 
+    LIMIT 1
+  `);
+  const credentials = stmt.get();
+  return credentials;
+});
+
+ipcMain.handle("get-user-credentials", () => {
+  const stmt = db.prepare(`
+    SELECT username, password 
+    FROM Users 
+    WHERE role = 'admin'
+    ORDER BY created_at DESC 
+    LIMIT 1
+  `);
+  const credentials = stmt.get();
+  return credentials;
+});
+
+ipcMain.handle("add-content-path", async (event, contentPath) => {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO ContentPaths (path, is_active)
+      VALUES (?, 0)
+    `);
+    const result = stmt.run(contentPath);
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("get-content-paths", () => {
+  const stmt = db.prepare(`
+    SELECT id, path, is_active, created_at
+    FROM ContentPaths
+    ORDER BY created_at DESC
+  `);
+  return stmt.all();
+});
+
+ipcMain.handle("set-active-content", async (event, contentId) => {
+  try {
+    const transaction = db.transaction(() => {
+      // First, deactivate all content paths
+      db.prepare('UPDATE ContentPaths SET is_active = 0').run();
+      // Then, activate the selected content path
+      db.prepare('UPDATE ContentPaths SET is_active = 1 WHERE id = ?').run(contentId);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("delete-content-path", async (event, contentId) => {
+  try {
+    const stmt = db.prepare('DELETE FROM ContentPaths WHERE id = ?');
+    stmt.run(contentId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("select-folder", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'Select Content Folder'
+  });
+  
+  if (!result.canceled) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle("readDirectory", async (event, dirPath) => {
+  try {
+    const items = await fs.readdir(dirPath);
+    return items;
+  } catch (error) {
+    console.error('Error reading directory:', error);
+    return [];
+  }
+});
+
+ipcMain.handle("openFile", async (event, filePath) => {
+  let decryptedPath = null;
+  try {
+    decryptedPath = await decryptFile(filePath);
+    
+    // Check if file exists and has content
+    const stats = await fs.stat(decryptedPath);
+    if (stats.size === 0) {
+      throw new Error('Decrypted file is empty');
+    }
+
+    // Open file with default application
+    const result = await shell.openPath(decryptedPath);
+    if (result !== '') {
+      throw new Error(`Failed to open file: ${result}`);
+    }
+
+    // Cleanup after a longer delay to ensure file opens
+    setTimeout(async () => {
+      try {
+        await fs.unlink(decryptedPath);
+      } catch (error) {
+        console.error('Error cleaning up temp file:', error);
+      }
+    }, 10000); // 10 seconds delay
+
+    return { success: true, filePath: decryptedPath };
+  } catch (error) {
+    if (decryptedPath) {
+      try {
+        await fs.unlink(decryptedPath);
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp file:', cleanupError);
+      }
+    }
+    console.error('Error handling file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("handleFileError", async (event, error) => {
+  console.error('File handling error:', error);
+  return { success: false, error: error.message };
 });
 
 app.whenReady().then(createWindow);
@@ -149,3 +317,36 @@ app.on("activate", () => {
     createWindow();
   }
 });
+
+// Use the same key that was used for encryption
+const KEY = "iactive@2024";
+
+async function decryptFile(filePath) {
+  try {
+    const data = await fs.readFile(filePath);
+    const iv = data.slice(0, 16);
+    const authTag = data.slice(16, 32);
+    const encryptedData = data.slice(32);
+
+    const secretKey = crypto.createHash("sha256").update(KEY).digest();
+    const decipher = crypto.createDecipheriv("aes-256-gcm", secretKey, iv);
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([
+      decipher.update(encryptedData),
+      decipher.final()
+    ]);
+
+    // Preserve the original file extension
+    const originalFileName = path.basename(filePath);
+    const fileExtension = path.extname(originalFileName);
+    const tempDir = os.tmpdir();
+    const decryptedFilePath = path.join(tempDir, `dec_${Date.now()}${fileExtension}`);
+
+    await fs.writeFile(decryptedFilePath, decrypted);
+    return decryptedFilePath;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    throw new Error('Failed to decrypt file');
+  }
+}
