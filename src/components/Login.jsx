@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextInput,
   Button,
@@ -10,8 +10,9 @@ import {
   Text,
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
-import banner from "../assets/lactive1.png"; // Import the image
-import bg from "../assets/bg4.jpg"; // Import the image
+import { notifications } from "@mantine/notifications";
+import banner from "../assets/lactive1.png";
+import bg from "../assets/bg4.jpg";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,17 +20,54 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    // Debug: Check users in database
+    const checkUsers = async () => {
+      const users = await window.electronAPI.debugUsers();
+      console.log("Available users:", users);
+    };
+    checkUsers();
+  }, []);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (email === "admin@gmail.com" && password === "1234") {
-      localStorage.setItem("userType", "admin");
-      navigate("/Home");
-    } else if (email === "teacher@gmail.com" && password === "1234") {
-      localStorage.setItem("userType", "teacher");
-      navigate("/Home");
-    } else {
-      setError("Invalid email or password");
+    try {
+      console.log("Attempting login with:", { email, password });
+      
+      const loginResult = await window.electronAPI.loginUser(email, password);
+      console.log("Login result:", loginResult);
+      
+      if (loginResult.success) {
+        localStorage.setItem("userType", loginResult.user.role);
+        localStorage.setItem("userEmail", email);
+        
+        notifications.show({
+          title: "Success",
+          message: "Login successful!",
+          color: "green",
+          autoClose: 2000,
+        });
+
+        navigate("/home");
+      } else {
+        setError(loginResult.error);
+        notifications.show({
+          title: "Error",
+          message: loginResult.error,
+          color: "red",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Login failed");
+      notifications.show({
+        title: "Error",
+        message: "Login failed: " + error.message,
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
@@ -39,24 +77,20 @@ const Login = () => {
         sx={{
           minHeight: "100vh",
           position: "relative",
-          overflow: "hidden", // Ensures content doesn't overflow the box
+          overflow: "hidden",
         }}
       >
-        {/* Background Image */}
         <img
           src={bg}
           alt="Background"
           style={{
             position: "absolute",
             top: 0,
-            left: "-10px", // Shift the image 10px to the left
-
-            // width: "auto",
+            left: "-10px",
             width: "100%",
             height: "100%",
-            // height: "auto",
-            objectFit: "cover", // Ensures the image covers the container
-            zIndex: -1, // Places the image behind other content
+            objectFit: "cover",
+            zIndex: -1,
           }}
         />
 
@@ -71,10 +105,7 @@ const Login = () => {
               boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
             }}
           >
-            {/* Logo */}
             <Box style={{ marginLeft: "160px" }}>
-              {" "}
-              {/* Changed from marginLeft: "180px" */}
               <Image
                 src={banner}
                 alt="FutureClass Logo"
@@ -84,7 +115,6 @@ const Login = () => {
               />
             </Box>
 
-            {/* Title */}
             <Title
               order={4}
               align="center"
@@ -98,7 +128,6 @@ const Login = () => {
               Login
             </Title>
 
-            {/* Form */}
             <form onSubmit={handleLogin}>
               <TextInput
                 placeholder="Email"
@@ -156,6 +185,7 @@ const Login = () => {
 
               <Text
                 align="center"
+                mt={15}
                 color="gray"
                 sx={{
                   cursor: "pointer",

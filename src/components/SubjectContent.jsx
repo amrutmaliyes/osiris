@@ -1,196 +1,217 @@
-import React, { useState } from "react";
-import {
-  Paper,
-  Title,
-  Text,
-  Accordion,
-  Button,
-  Group,
-  Progress,
-} from "@mantine/core";
+import React, { useState, useEffect } from "react";
+import { Text, Paper, Accordion, Group, Button } from "@mantine/core";
+import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
 
-const SubjectContent = ({ subject, classNumber }) => {
+const SubjectContent = ({ subject, classNumber, contentPath }) => {
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
+  const [chapterContent, setChapterContent] = useState([]);
 
-  // Mock progress data - replace with real data later
-  const chapterProgress = {
-    Math: {
-      "Chapter 1: Real Numbers": 75,
-      "Chapter 2: Polynomials": 30,
-      "Chapter 3: Pair of Linear Equations": 0,
-    },
-    Physics: {
-      "Chapter 1: Light - Reflection and Refraction": 60,
-      "Chapter 2: Electricity": 25,
-    },
-    Chemistry: {
-      "Chapter 1: Chemical Reactions and Equations": 90,
-      "Chapter 2: Acids, Bases and Salts": 45,
-    },
+  useEffect(() => {
+    loadSubjects();
+    setSelectedSubject(subject);
+  }, [subject, classNumber, contentPath]);
+
+  useEffect(() => {
+    if (selectedSubject) {
+      loadChapters(selectedSubject);
+    }
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    if (selectedChapter) {
+      loadChapterContent();
+    }
+  }, [selectedChapter]);
+
+  const loadSubjects = async () => {
+    try {
+      const classPath = `${contentPath}/class${classNumber}`;
+      const subjects = await window.electronAPI.readDirectory(classPath);
+      setAllSubjects(subjects);
+    } catch (error) {
+      console.error('Error loading subjects:', error);
+    }
   };
 
-  // Content structure for each subject
-  const subjectContent = {
-    Math: {
-      chapters: [
-        {
-          title: "Chapter 1: Real Numbers",
-          topics: [
-            "Euclid's Division Lemma",
-            "The Fundamental Theorem of Arithmetic",
-            "Revisiting Irrational Numbers",
-            "Revisiting Rational Numbers and Their Decimal Expansions",
-          ],
-        },
-        {
-          title: "Chapter 2: Polynomials",
-          topics: [
-            "Geometrical Meaning of the Zeroes of a Polynomial",
-            "Relationship between Zeroes and Coefficients of a Polynomial",
-            "Division Algorithm for Polynomials",
-          ],
-        },
-        {
-          title: "Chapter 3: Pair of Linear Equations",
-          topics: [
-            "Graphical Method of Solution of a Pair of Linear Equations",
-            "Algebraic Methods of Solving a Pair of Linear Equations",
-            "Equations Reducible to a Pair of Linear Equations in Two Variables",
-          ],
-        },
-      ],
-    },
-    Physics: {
-      chapters: [
-        {
-          title: "Chapter 1: Light - Reflection and Refraction",
-          topics: [
-            "Reflection of Light",
-            "Spherical Mirrors",
-            "Refraction of Light",
-            "Optical Instruments",
-          ],
-        },
-        {
-          title: "Chapter 2: Electricity",
-          topics: [
-            "Electric Current and Circuit",
-            "Electric Potential and Potential Difference",
-            "Ohm's Law",
-            "Factors Affecting Resistance",
-          ],
-        },
-      ],
-    },
-    Chemistry: {
-      chapters: [
-        {
-          title: "Chapter 1: Chemical Reactions and Equations",
-          topics: [
-            "Chemical Equations",
-            "Types of Chemical Reactions",
-            "Oxidation and Reduction",
-            "Effects of Oxidation",
-          ],
-        },
-        {
-          title: "Chapter 2: Acids, Bases and Salts",
-          topics: [
-            "Understanding pH Scale",
-            "Importance of pH in Everyday Life",
-            "More About Salts",
-            "Chemicals from Common Salt",
-          ],
-        },
-      ],
-    },
-    // Add more subjects as needed
+  const loadChapters = async (subjectName) => {
+    try {
+      const subjectPath = `${contentPath}/class${classNumber}/${subjectName}`;
+      const chapterFiles = await window.electronAPI.readDirectory(subjectPath);
+      setChapters(chapterFiles);
+      setSelectedChapter(null);
+      setChapterContent([]);
+    } catch (error) {
+      console.error('Error loading chapters:', error);
+    }
   };
 
-  const currentSubject = subjectContent[subject] || { chapters: [] };
+  const loadChapterContent = async () => {
+    try {
+      const chapterPath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}`;
+      const files = await window.electronAPI.readDirectory(chapterPath);
+      setChapterContent(files);
+    } catch (error) {
+      console.error('Error loading chapter content:', error);
+    }
+  };
+
+  const handleFileOpen = async (fileName) => {
+    try {
+      const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
+      const result = await window.electronAPI.openFile(filePath);
+      
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
+        alert(`Failed to open file: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error handling file:', error);
+      alert('Error opening file');
+    }
+  };
+
+  const getFileIcon = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return <IconFileText size={20} />;
+      case 'mp4':
+      case 'webm':
+      case 'mkv':
+        return <IconVideo size={20} />;
+      case 'mp3':
+      case 'wav':
+      case 'ogg':
+        return <IconHeadphones size={20} />;
+      default:
+        return <IconFile size={20} />;
+    }
+  };
+
+  const getFileTypeLabel = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return 'Read';
+      case 'mp4':
+      case 'webm':
+      case 'mkv':
+        return 'Watch';
+      case 'mp3':
+      case 'wav':
+      case 'ogg':
+        return 'Listen';
+      default:
+        return 'Open';
+    }
+  };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <Title order={2} mb="xl">
-        {subject} - Class {classNumber}
-      </Title>
-
-      {/* Chapters Section */}
-      <Paper shadow="sm" p="md">
-        <Title order={3} mb="lg">
-          Chapters & Topics
-        </Title>
-
-        <Accordion
-          variant="separated"
-          radius="md"
-          defaultValue={currentSubject.chapters[0]?.title}
+    <div style={{ display: "flex", width: "100%" }}>
+      {/* Sidebar */}
+      <div
+        style={{
+          width: "300px",
+          backgroundColor: "#f5f5f5",
+          padding: "20px",
+          minHeight: "calc(100vh - 100px)",
+          borderRight: "1px solid #ddd",
+        }}
+      >
+        <Text
+          size="xl"
+          weight={700}
+          style={{
+            marginBottom: "20px",
+            color: "#E78528",
+            borderBottom: "2px solid #E78528",
+            paddingBottom: "10px",
+          }}
         >
-          {currentSubject.chapters.map((chapter, index) => (
-            <Accordion.Item key={index} value={chapter.title}>
+          Subjects
+        </Text>
+        
+        {allSubjects.map((subj, index) => (
+          <Paper
+            key={index}
+            onClick={() => setSelectedSubject(subj)}
+            style={{
+              padding: "15px",
+              marginBottom: "10px",
+              cursor: "pointer",
+              backgroundColor: selectedSubject === subj ? "#E78528" : "white",
+              color: selectedSubject === subj ? "white" : "black",
+              transition: "all 0.3s ease",
+            }}
+            shadow="sm"
+            onMouseEnter={(e) => {
+              if (selectedSubject !== subj) {
+                e.currentTarget.style.backgroundColor = "#fff3e6";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (selectedSubject !== subj) {
+                e.currentTarget.style.backgroundColor = "white";
+              }
+            }}
+          >
+            <Text size="md" weight={500}>
+              {subj}
+            </Text>
+          </Paper>
+        ))}
+      </div>
+
+      {/* Content Area */}
+      <div style={{ flex: 1, padding: "20px" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <Text size="xl" weight={700}>
+            {selectedSubject} - Chapters
+          </Text>
+        </div>
+
+        <Accordion>
+          {chapters.map((chapter, index) => (
+            <Accordion.Item 
+              key={index} 
+              value={chapter}
+              onClick={() => setSelectedChapter(chapter)}
+            >
               <Accordion.Control>
-                <div style={{ width: "100%" }}>
-                  <Group position="apart" mb={8}>
-                    <Text fw={500}>{chapter.title}</Text>
-                    <Text size="sm" color="dimmed">
-                      {chapterProgress[subject]?.[chapter.title] || 0}% Complete
-                    </Text>
-                  </Group>
-                  <Progress
-                    value={chapterProgress[subject]?.[chapter.title] || 0}
-                    size="sm"
-                    radius="xl"
-                    color={
-                      chapterProgress[subject]?.[chapter.title] === 100
-                        ? "green"
-                        : "orange"
-                    }
-                  />
-                </div>
+                <Group>
+                  <IconBook size={20} />
+                  <Text>{chapter}</Text>
+                </Group>
               </Accordion.Control>
               <Accordion.Panel>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                  }}
-                >
-                  {chapter.topics.map((topic, i) => (
-                    <Paper
-                      key={i}
-                      p="sm"
-                      withBorder
-                      style={{
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f8f9fa";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
+                {selectedChapter === chapter && chapterContent.map((file, fileIndex) => (
+                  <Group 
+                    key={fileIndex}
+                    style={{
+                      padding: "10px",
+                      borderBottom: "1px solid #eee",
+                      alignItems: "center"
+                    }}
+                  >
+                    {getFileIcon(file)}
+                    <Text style={{ flex: 1 }}>{file}</Text>
+                    <Button
+                      variant="light"
+                      color="orange"
+                      onClick={() => handleFileOpen(file)}
                     >
-                      <Group position="apart" style={{ width: "100%" }}>
-                        <Text size="sm">{topic}</Text>
-                        <Button
-                          variant="subtle"
-                          size="xs"
-                          color="orange"
-                          style={{ marginLeft: "auto" }}
-                        >
-                          watch
-                        </Button>
-                      </Group>
-                    </Paper>
-                  ))}
-                </div>
+                      Watch
+                    </Button>
+                  </Group>
+                ))}
               </Accordion.Panel>
             </Accordion.Item>
           ))}
         </Accordion>
-      </Paper>
+      </div>
     </div>
   );
 };

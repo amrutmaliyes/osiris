@@ -62,7 +62,7 @@ const ActivationDetails = () => {
       const activationData = {
         activation_key: activationCode,
 
-        serial_number: systemInfo.serialNumber,
+        serial_number: systemInfo.os,
 
         version: "1.0",
       };

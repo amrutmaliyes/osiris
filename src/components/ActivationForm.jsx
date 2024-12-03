@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import banner from "../assets/lactive1.png";
-const ActivationForm = () => {
+const ActivationForm = ({ onActivationSuccess }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     institutionName: "",
@@ -72,40 +72,38 @@ const ActivationForm = () => {
     }
 
     try {
-      // Get system info
       const systemInfo = await window.electronAPI.getSystemInfo();
-
-      // Prepare activation data
       const activationData = {
         activation_key: formData.productKey,
-        serial_number: systemInfo.serialNumber,
-        version: "1.0", // Add your version number
+        serial_number: systemInfo.os,
+        version: "1.0",
         email: formData.email,
+        password: formData.password,
         institutionName: formData.institutionName,
       };
-      console.log("some data level 1", activationData);
-
-      // Call activation API through IPC
 
       const result = await window.electronAPI.activateProduct(activationData);
-      console.log(result, "resssssss");
 
-      if (result.success) {
+      if (result.success && result.data.activationStatus === "Active") {
+        const users = await window.electronAPI.debugUsers();
+        console.log("Users after activation:", users);
+
         notifications.show({
           title: "Success",
           message: "Product activated successfully!",
           color: "green",
           autoClose: 3000,
         });
-
-        // Navigate to login after successful activation
+        
+        onActivationSuccess();
+        
         setTimeout(() => {
           navigate("/login");
-        }, 1000);
+        }, 1500);
       } else {
         notifications.show({
           title: "Error",
-          message: result.error,
+          message: result.error || "Activation failed. Please try again.",
           color: "red",
           autoClose: 5000,
         });

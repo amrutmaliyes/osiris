@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar.jsx";
 import {
   Container,
@@ -15,21 +15,71 @@ import {
 
 const Settings = () => {
   // State for content list
-  const [contentList] = useState([
-    {
-      id: 1,
-      contentPath: "C:\\Users\\amrut\\Desktop\\TestContent",
-      startDate: "2024-11-20",
-      displayName: "C:\\Users\\amrut\\Desktop\\TestContent",
-      status: "active",
-    },
-  ]);
+  const [contentList, setContentList] = useState([]);
 
   // State for folder path and menu
   const [folderPath, setFolderPath] = useState("");
-  const [selectedMenu, setSelectedMenu] = useState(
-    "C:\\Users\\amrut\\Desktop\\TestContent"
-  );
+  const [selectedMenu, setSelectedMenu] = useState("");
+
+  // Load content paths on component mount
+  useEffect(() => {
+    loadContentPaths();
+  }, []);
+
+  const loadContentPaths = async () => {
+    const paths = await window.electronAPI.getContentPaths();
+    setContentList(paths.map(path => ({
+      id: path.id,
+      contentPath: path.path,
+      startDate: new Date(path.created_at).toISOString().split('T')[0],
+      displayName: path.path,
+      status: path.is_active ? 'active' : 'inactive'
+    })));
+  };
+
+  const handleUpload = async () => {
+    if (!folderPath) return;
+    
+    const result = await window.electronAPI.addContentPath(folderPath);
+    if (result.success) {
+      setFolderPath("");
+      loadContentPaths();
+    }
+  };
+
+  const handleActivate = async () => {
+    const selectedContent = contentList.find(item => item.contentPath === selectedMenu);
+    if (!selectedContent) return;
+
+    const result = await window.electronAPI.setActiveContent(selectedContent.id);
+    if (result.success) {
+      loadContentPaths();
+    }
+  };
+
+  const handleDelete = async () => {
+    const selectedContent = contentList.find(item => item.contentPath === selectedMenu);
+    if (!selectedContent) return;
+
+    const result = await window.electronAPI.deleteContentPath(selectedContent.id);
+    if (result.success) {
+      setSelectedMenu("");
+      loadContentPaths();
+    }
+  };
+
+  const handleBrowse = async () => {
+    const selectedPath = await window.electronAPI.selectFolder();
+    if (selectedPath) {
+      setFolderPath(selectedPath);
+    }
+  };
+
+  // Update the Select component data
+  const menuOptions = contentList.map(item => ({
+    value: item.contentPath,
+    label: item.contentPath
+  }));
 
   // Breadcrumb items
   const breadcrumbItems = [{ title: "Settings", href: "/" }].map(
@@ -165,9 +215,6 @@ const Settings = () => {
           >
             UPLOAD CONTENT FOLDER
           </Text>
-          {/* <Text size={24} weight={500} mb="xl" align="center">
-            UPLOAD CONTENT FOLDER
-          </Text> */}
 
           <Text size="lg" mb="md">
             Location:
@@ -176,18 +223,33 @@ const Settings = () => {
             <TextInput
               placeholder="Choose the Folder path"
               value={folderPath}
-              onChange={(e) => setFolderPath(e.target.value)}
+              readOnly
               style={{ flex: 1 }}
               styles={{
                 input: {
                   fontSize: "18px",
                   height: "45px",
+                  cursor: "default",
                 },
               }}
             />
             <Button
+              color="blue"
+              size="lg"
+              onClick={handleBrowse}
+              styles={{
+                root: {
+                  fontSize: "18px",
+                  padding: "0 30px",
+                },
+              }}
+            >
+              Browse
+            </Button>
+            <Button
               color="orange"
               size="lg"
+              onClick={handleUpload}
               styles={{
                 root: {
                   fontSize: "18px",
@@ -202,9 +264,6 @@ const Settings = () => {
           <Divider my="xl" />
 
           {/* Change Content Section */}
-          {/* <Text size={20} weight={500} mb="xl" align="center">
-            CHANGE CONTENT
-          </Text> */}
           <Text
             size="lg"
             weight={400}
@@ -214,17 +273,9 @@ const Settings = () => {
           >
             Select Menu
           </Text>
-          {/* <Text size="lg" mb="md">
-            Select Menu
-          </Text> */}
           <Group align="flex-end" spacing="md">
             <Select
-              data={[
-                {
-                  value: "C:\\Users\\amrut\\Desktop\\TestContent",
-                  label: "C:\\Users\\amrut\\Desktop\\TestContent",
-                },
-              ]}
+              data={menuOptions}
               value={selectedMenu}
               onChange={setSelectedMenu}
               style={{ flex: 1 }}
@@ -238,6 +289,7 @@ const Settings = () => {
             <Button
               color="orange"
               size="lg"
+              onClick={handleActivate}
               styles={{
                 root: {
                   fontSize: "18px",
@@ -250,6 +302,7 @@ const Settings = () => {
             <Button
               color="gray"
               size="lg"
+              onClick={handleDelete}
               styles={{
                 root: {
                   fontSize: "18px",

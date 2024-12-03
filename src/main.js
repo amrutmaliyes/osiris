@@ -1,11 +1,16 @@
 const SQLite = require("better-sqlite3");
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const si = require("systeminformation");
 const axios = require("axios");
 const path = require("path");
+const fs = require('fs').promises;
+const crypto = require('crypto');
+const os = require('os');
 
 const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
-const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
+const db = new SQLite( "data.db");
+
+// const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
 
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -18,6 +23,9 @@ const initDb = () => {
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       role TEXT NOT NULL,
+      name TEXT,
+      mobile TEXT,
+      department TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -26,6 +34,8 @@ const initDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
       organization_name TEXT NOT NULL,
+      head_of_institution TEXT,
+      mobile_no TEXT,
       serial_mac_id TEXT NOT NULL,
       activation_code TEXT NOT NULL UNIQUE,
       start_date DATETIME,
@@ -92,36 +102,75 @@ const createWindow = () => {
 ipcMain.handle("get-system-info", async () => {
   console.log("Here Inside Main System Info");
   const uuid = await si.uuid();
-  const macAddress = await si.networkInterfaces();
-  return {
-    serialNumber: uuid.hardware,
-    macAddress: macAddress[0]?.mac || "",
-  };
+  console.log(uuid,"uuid")
+  return uuid
+  // const macAddress = await si.networkInterfaces();
+  // console.log(macAddress,"macaddresss")
+  // return {
+  //   serialNumber: uuid.hardware,
+  //   macAddress: macAddress[1]?.mac || "",
+  // };
 });
 
 ipcMain.handle("activate-product", async (event, activationData) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/products-keys/activation`,
+      `${API_BASE_URL}/product-keys/activation`,
       activationData
     );
+console.log(response.data,"responsesssssssssssss")
+    // Only insert into database if activation is successful
     if (response.data.activationStatus === "Active") {
-      const stmt = db.prepare(`
+      // Extract dates from the main DB response
+      const { activation_date, expiry_date } = response.data;
+
+      const insertActivationStmt = db.prepare(`
         INSERT INTO Activations (
-          email, organization_name, serial_mac_id,
-          activation_code, start_date, end_date
-        ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'))
+          email, 
+          organization_name, 
+          serial_mac_id,
+          activation_code, 
+          start_date,      
+          end_date,        
+          created_at      
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
       `);
-      stmt.run(
-        activationData.email,
-        activationData.institutionName,
-        activationData.serialNumber,
-        response.data.activation_key
-      );
+
+      const insertUserStmt = db.prepare(`
+        INSERT INTO Users (
+          username, password, role
+        ) VALUES (?, ?, ?)
+      `);
+
+      // Start a transaction to ensure both inserts succeed or fail together
+      const transaction = db.transaction(() => {
+        insertActivationStmt.run(
+          activationData.email,
+          activationData.institutionName,
+          activationData.serial_number,
+          activationData.activation_key,
+          activation_date,    // From main DB
+          expiry_date        // From main DB
+        );
+
+        insertUserStmt.run(
+          activationData.email,
+          activationData.password,
+          'admin'
+        );
+      });
+
+      transaction();
+
       return { success: true, data: response.data };
     }
-    return { success: false, error: "Activation failed" };
+
+    return {
+      success: false,
+      error: "Activation failed: Invalid or expired activation key"
+    };
   } catch (error) {
+    console.error("Activation error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -130,6 +179,353 @@ ipcMain.handle("check-activation", () => {
   const stmt = db.prepare("SELECT * FROM Activations LIMIT 1");
   const activation = stmt.get();
   return !!activation;
+});
+
+ipcMain.handle("get-activation-credentials", () => {
+  const stmt = db.prepare(`
+    SELECT email, password 
+    FROM Activations 
+    ORDER BY created_at DESC 
+    LIMIT 1
+  `);
+  const credentials = stmt.get();
+  return credentials;
+});
+
+ipcMain.handle("get-user-credentials", () => {
+  const stmt = db.prepare(`
+    SELECT username, password 
+    FROM Users 
+    WHERE role = 'admin'
+    ORDER BY created_at DESC 
+    LIMIT 1
+  `);
+  const credentials = stmt.get();
+  return credentials;
+});
+
+ipcMain.handle("get-user-details", async (event, userId) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, username, password, role, name, mobile, department
+      FROM Users
+      WHERE id = ?
+    `);
+    
+    const user = stmt.get(userId);
+    console.log("Retrieved user details:", user); // For debugging
+    
+    if (user) {
+      return { success: true, user };
+    } else {
+      return { success: false, error: "User not found" };
+    }
+  } catch (error) {
+    console.error("Get user details error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("add-content-path", async (event, contentPath) => {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO ContentPaths (path, is_active)
+      VALUES (?, 0)
+    `);
+    const result = stmt.run(contentPath);
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("get-content-paths", () => {
+  const stmt = db.prepare(`
+    SELECT id, path, is_active, created_at
+    FROM ContentPaths
+    ORDER BY created_at DESC
+  `);
+  return stmt.all();
+});
+
+ipcMain.handle("set-active-content", async (event, contentId) => {
+  try {
+    const transaction = db.transaction(() => {
+      // First, deactivate all content paths
+      db.prepare('UPDATE ContentPaths SET is_active = 0').run();
+      // Then, activate the selected content path
+      db.prepare('UPDATE ContentPaths SET is_active = 1 WHERE id = ?').run(contentId);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("delete-content-path", async (event, contentId) => {
+  try {
+    const stmt = db.prepare('DELETE FROM ContentPaths WHERE id = ?');
+    stmt.run(contentId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("select-folder", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'Select Content Folder'
+  });
+  
+  if (!result.canceled) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle("readDirectory", async (event, dirPath) => {
+  try {
+    const items = await fs.readdir(dirPath);
+    return items;
+  } catch (error) {
+    console.error('Error reading directory:', error);
+    return [];
+  }
+});
+
+ipcMain.handle("openFile", async (event, filePath) => {
+  let decryptedPath = null;
+  try {
+    decryptedPath = await decryptFile(filePath);
+    
+    // Check if file exists and has content
+    const stats = await fs.stat(decryptedPath);
+    if (stats.size === 0) {
+      throw new Error('Decrypted file is empty');
+    }
+
+    // Open file with default application
+    const result = await shell.openPath(decryptedPath);
+    if (result !== '') {
+      throw new Error(`Failed to open file: ${result}`);
+    }
+
+    // Cleanup after a longer delay to ensure file opens
+    setTimeout(async () => {
+      try {
+        await fs.unlink(decryptedPath);
+      } catch (error) {
+        console.error('Error cleaning up temp file:', error);
+      }
+    }, 10000); // 10 seconds delay
+
+    return { success: true, filePath: decryptedPath };
+  } catch (error) {
+    if (decryptedPath) {
+      try {
+        await fs.unlink(decryptedPath);
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp file:', cleanupError);
+      }
+    }
+    console.error('Error handling file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("handleFileError", async (event, error) => {
+  console.error('File handling error:', error);
+  return { success: false, error: error.message };
+});
+
+// Add user to database
+ipcMain.handle("add-user", async (event, userData) => {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO Users (
+        username, password, role, name, mobile, department
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      userData.username,
+      userData.password,
+      userData.role,
+      userData.name || null,
+      userData.mobile || null,
+      userData.department || null
+    );
+
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    console.error("Add user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get all users
+ipcMain.handle("get-users", () => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, username, role, name, mobile, department
+      FROM Users
+      ORDER BY created_at DESC
+    `);
+    return stmt.all();
+  } catch (error) {
+    console.error("Get users error:", error);
+    return [];
+  }
+});
+
+// Login user
+ipcMain.handle("login-user", async (event, username, password) => {
+  try {
+    console.log("Login attempt with:", { username, password });
+
+    const stmt = db.prepare(`
+      SELECT id, username, role
+      FROM Users
+      WHERE username = ? AND password = ?
+    `);
+    
+    const user = stmt.get(username, password);
+    console.log("Found user:", user);
+    
+    if (user) {
+      return { success: true, user };
+    } else {
+      return { success: false, error: "Invalid credentials" };
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Debug handler
+ipcMain.handle("debug-users", () => {
+  try {
+    const stmt = db.prepare("SELECT * FROM Users");
+    const users = stmt.all();
+    console.log("All users in database:", users);
+    return users;
+  } catch (error) {
+    console.error("Debug users error:", error);
+    return [];
+  }
+});
+
+// Add these new handlers
+ipcMain.handle("update-user", async (event, userData) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE Users 
+      SET username = ?, name = ?, mobile = ?, role = ?, department = ?
+      ${userData.password ? ', password = ?' : ''}
+      WHERE id = ?
+    `);
+    
+    const params = [
+      userData.username,
+      userData.name,
+      userData.mobile,
+      userData.role,
+      userData.department,
+      ...(userData.password ? [userData.password] : []),
+      userData.id
+    ];
+
+    const result = stmt.run(...params);
+    return { success: true, changes: result.changes };
+  } catch (error) {
+    console.error("Update user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("delete-user", async (event, userId) => {
+  try {
+    console.log("Attempting to delete user:", userId); // For debugging
+    
+    const stmt = db.prepare('DELETE FROM Users WHERE id = ?');
+    const result = stmt.run(userId);
+    
+    console.log("Delete result:", result); // For debugging
+    
+    if (result.changes > 0) {
+      return { success: true, changes: result.changes };
+    } else {
+      return { success: false, error: "User not found or could not be deleted" };
+    }
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get organization details
+ipcMain.handle("get-organization-details", async () => {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        a.organization_name,
+        a.email,
+        a.serial_mac_id,
+        a.activation_code,
+        a.start_date,
+        a.end_date,
+        a.created_at,
+        a.mobile_no,
+        a.head_of_institution
+      FROM Activations a
+      ORDER BY a.created_at DESC
+      LIMIT 1
+    `);
+    
+    const data = stmt.get();
+    
+    if (!data) {
+      return { success: false, error: "No activation found" };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error getting organization details:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Update organization details
+ipcMain.handle("update-organization-details", async (event, data) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE Activations 
+      SET 
+        organization_name = ?,
+        mobile_no = ?,
+        head_of_institution = ?,
+        updated_at = datetime('now')
+      WHERE id = (
+        SELECT id FROM Activations 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      )
+    `);
+    
+    stmt.run(
+      data.organization_name,
+      data.mobile_no,
+      data.head_of_institution
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating organization details:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 app.whenReady().then(createWindow);
@@ -146,282 +542,35 @@ app.on("activate", () => {
   }
 });
 
-// const SQLite = require("better-sqlite3");
-// const { app, BrowserWindow, ipcMain } = require("electron");
-// const si = require("systeminformation");
-// const axios = require("axios");
-// const path = require("path");
+// Use the same key that was used for encryption
+const KEY = "iactive@2024";
 
-// const API_BASE_URL = "http://localhost:3000"; // Update with your API URL
-// const dbPath = path.join(app.getPath("userData"), "data.db");
-// const db = new SQLite(dbPath);
+async function decryptFile(filePath) {
+  try {
+    const data = await fs.readFile(filePath);
+    const iv = data.slice(0, 16);
+    const authTag = data.slice(16, 32);
+    const encryptedData = data.slice(32);
 
-// console.log(`Database file created at: ${dbPath}`);
+    const secretKey = crypto.createHash("sha256").update(KEY).digest();
+    const decipher = crypto.createDecipheriv("aes-256-gcm", secretKey, iv);
+    decipher.setAuthTag(authTag);
 
-// if (require("electron-squirrel-startup")) {
-//   app.quit();
-// }
+    const decrypted = Buffer.concat([
+      decipher.update(encryptedData),
+      decipher.final()
+    ]);
 
-// const initDb = () => {
-//   try {
-//     db.exec(`
-//       CREATE TABLE IF NOT EXISTS Users (
-//         id INTEGER PRIMARY KEY AUTOINCREMENT,
-//         username TEXT NOT NULL UNIQUE,
-//         password TEXT NOT NULL,
-//         role TEXT NOT NULL,
-//         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-//       );
+    // Preserve the original file extension
+    const originalFileName = path.basename(filePath);
+    const fileExtension = path.extname(originalFileName);
+    const tempDir = os.tmpdir();
+    const decryptedFilePath = path.join(tempDir, `dec_${Date.now()}${fileExtension}`);
 
-//       CREATE TABLE IF NOT EXISTS Activations (
-//         id INTEGER PRIMARY KEY AUTOINCREMENT,
-//         email TEXT NOT NULL,
-//         organization_name TEXT NOT NULL,
-//         serial_mac_id TEXT NOT NULL,
-//         activation_code TEXT NOT NULL UNIQUE,
-//         start_date DATETIME,
-//         end_date DATETIME,
-//         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-//       );
-
-//       CREATE TABLE IF NOT EXISTS ContentPaths (
-//         id INTEGER PRIMARY KEY AUTOINCREMENT,
-//         path TEXT NOT NULL UNIQUE,
-//         is_active BOOLEAN DEFAULT 0,
-//         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-//       );
-
-//       CREATE TABLE IF NOT EXISTS ContentItems (
-//         id INTEGER PRIMARY KEY AUTOINCREMENT,
-//         folder_id INTEGER,
-//         title TEXT NOT NULL,
-//         description TEXT,
-//         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         FOREIGN KEY (folder_id) REFERENCES ContentPaths(id)
-//       );
-
-//       CREATE TABLE IF NOT EXISTS ContentProgress (
-//         id INTEGER PRIMARY KEY AUTOINCREMENT,
-//         user_id INTEGER,
-//         folder_id INTEGER,
-//         content_item_id INTEGER,
-//         completion_percentage INTEGER DEFAULT 0,
-//         status TEXT DEFAULT 'in-progress',
-//         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-//         FOREIGN KEY (user_id) REFERENCES Users(id),
-//         FOREIGN KEY (folder_id) REFERENCES ContentPaths(id),
-//         FOREIGN KEY (content_item_id) REFERENCES ContentItems(id)
-//       );
-//     `);
-
-//     // Verify tables were created
-//     const tables = db
-//       .prepare(
-//         `
-//       SELECT name FROM sqlite_master
-//       WHERE type='table'
-//       ORDER BY name;
-//     `
-//       )
-//       .all();
-
-//     console.log("Database initialized successfully!");
-//     console.log(
-//       "Created tables:",
-//       tables.map((t) => t.name)
-//     );
-
-//     // Show row counts for each table
-//     tables.forEach((table) => {
-//       const count = db
-//         .prepare(`SELECT COUNT(*) as count FROM ${table.name}`)
-//         .get();
-//       console.log(`Table ${table.name}: ${count.count} rows`);
-//     });
-//   } catch (error) {
-//     console.error("Database initialization failed:", error);
-//   }
-// };
-
-// const createWindow = () => {
-//   const mainWindow = new BrowserWindow({
-//     width: 1200,
-//     height: 800,
-//     webPreferences: {
-//       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
-//       contextIsolation: true,
-//       nodeIntegration: false,
-//     },
-//   });
-
-//   initDb();
-//   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-//   // Open DevTools in development
-//   mainWindow.webContents.openDevTools();
-
-//   // Check if app is activated
-//   const checkActivation = db.prepare("SELECT * FROM Activations LIMIT 1");
-//   const activation = checkActivation.get();
-//   if (!activation) {
-//     mainWindow.webContents.once("dom-ready", () => {
-//       mainWindow.webContents.send("check-activation", false);
-//     });
-//   }
-
-//   console.log("Activation status:", !!activation);
-// };
-
-// // IPC Handlers
-// ipcMain.handle("get-system-info", async () => {
-//   try {
-//     const uuid = await si.uuid();
-//     const networkInterfaces = await si.networkInterfaces();
-//     const systemInfo = {
-//       serialNumber: uuid.hardware,
-//       macAddress: networkInterfaces[0]?.mac || "",
-//     };
-//     console.log("System Info:", systemInfo);
-//     return systemInfo;
-//   } catch (error) {
-//     console.error("Error getting system info:", error);
-//     throw error;
-//   }
-// });
-
-// ipcMain.handle("activate-product", async (event, activationData) => {
-//   try {
-//     console.log("Activation request data:", activationData);
-
-//     const response = await axios.post(`${API_BASE_URL}/activation`, {
-//       activation_key: activationData.activation_key,
-//       serial_number: activationData.serial_number,
-//       version: activationData.version,
-//       email: activationData.email,
-//       organization_name: activationData.institutionName,
-//       head_of_institution: activationData.headOfInstitution,
-//       mobile_no: activationData.mobileNo,
-//       password: activationData.password,
-//     });
-
-//     console.log("API Response:", response.data);
-
-//     if (response.data && response.data.activationStatus === "Active") {
-//       try {
-//         // Begin transaction
-//         db.transaction(() => {
-//           // Insert activation record
-//           const activationStmt = db.prepare(`
-//             INSERT INTO Activations (
-//               email,
-//               organization_name,
-//               serial_mac_id,
-//               activation_code,
-//               start_date,
-//               end_date
-//             ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'))
-//           `);
-
-//           const activationResult = activationStmt.run(
-//             activationData.email,
-//             activationData.institutionName,
-//             activationData.serial_number,
-//             activationData.activation_key
-//           );
-
-//           console.log(
-//             "Activation record created:",
-//             activationResult.lastInsertRowid
-//           );
-
-//           // Insert user record
-//           const userStmt = db.prepare(`
-//             INSERT INTO Users (
-//               username,
-//               password,
-//               role
-//             ) VALUES (?, ?, ?)
-//           `);
-
-//           const userResult = userStmt.run(
-//             activationData.email,
-//             activationData.password,
-//             "admin"
-//           );
-
-//           console.log("User record created:", userResult.lastInsertRowid);
-//         })();
-
-//         // Show updated counts
-//         const activationCount = db
-//           .prepare("SELECT COUNT(*) as count FROM Activations")
-//           .get();
-//         const userCount = db
-//           .prepare("SELECT COUNT(*) as count FROM Users")
-//           .get();
-//         console.log(`Total activations: ${activationCount.count}`);
-//         console.log(`Total users: ${userCount.count}`);
-
-//         return {
-//           success: true,
-//           data: response.data,
-//         };
-//       } catch (dbError) {
-//         console.error("Database error:", dbError);
-//         return {
-//           success: false,
-//           error: "Failed to save activation data",
-//         };
-//       }
-//     }
-//     return {
-//       success: false,
-//       error: response.data.message || "Activation failed",
-//     };
-//   } catch (error) {
-//     console.error("Activation error:", error);
-//     return {
-//       success: false,
-//       error: error.response?.data?.message || error.message,
-//     };
-//   }
-// });
-
-// ipcMain.handle("check-activation", () => {
-//   try {
-//     const stmt = db.prepare("SELECT * FROM Activations LIMIT 1");
-//     const activation = stmt.get();
-//     console.log("Checking activation status:", !!activation);
-//     return !!activation;
-//   } catch (error) {
-//     console.error("Check activation error:", error);
-//     return false;
-//   }
-// });
-
-// // App lifecycle events
-// app.whenReady().then(createWindow);
-
-// app.on("window-all-closed", () => {
-//   if (process.platform !== "darwin") {
-//     app.quit();
-//   }
-// });
-
-// app.on("activate", () => {
-//   if (BrowserWindow.getAllWindows().length === 0) {
-//     createWindow();
-//   }
-// });
-
-// // Error handling for uncaught exceptions
-// process.on("uncaughtException", (error) => {
-//   console.error("Uncaught exception:", error);
-// });
-
-// process.on("unhandledRejection", (error) => {
-//   console.error("Unhandled rejection:", error);
-// });
+    await fs.writeFile(decryptedFilePath, decrypted);
+    return decryptedFilePath;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    throw new Error('Failed to decrypt file');
+  }
+}
