@@ -18,45 +18,53 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [userCredentials, setUserCredentials] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const getCredentials = async () => {
-      try {
-        const credentials = await window.electronAPI.getUserCredentials();
-        if (credentials) {
-          setUserCredentials(credentials);
-        }
-      } catch (error) {
-        console.error("Error fetching credentials:", error);
-      }
+    // Debug: Check users in database
+    const checkUsers = async () => {
+      const users = await window.electronAPI.debugUsers();
+      console.log("Available users:", users);
     };
-
-    getCredentials();
+    checkUsers();
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (userCredentials && email === userCredentials.username && password === userCredentials.password) {
-      // Admin login successful
-      localStorage.setItem("userType", "admin");
-      localStorage.setItem("userEmail", email);
+    try {
+      console.log("Attempting login with:", { email, password });
       
-      notifications.show({
-        title: "Success",
-        message: "Login successful!",
-        color: "green",
-        autoClose: 2000,
-      });
+      const loginResult = await window.electronAPI.loginUser(email, password);
+      console.log("Login result:", loginResult);
+      
+      if (loginResult.success) {
+        localStorage.setItem("userType", loginResult.user.role);
+        localStorage.setItem("userEmail", email);
+        
+        notifications.show({
+          title: "Success",
+          message: "Login successful!",
+          color: "green",
+          autoClose: 2000,
+        });
 
-      navigate("/home");
-    } else {
-      setError("Invalid email or password");
+        navigate("/home");
+      } else {
+        setError(loginResult.error);
+        notifications.show({
+          title: "Error",
+          message: loginResult.error,
+          color: "red",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Login failed");
       notifications.show({
         title: "Error",
-        message: "Invalid email or password",
+        message: "Login failed: " + error.message,
         color: "red",
         autoClose: 3000,
       });

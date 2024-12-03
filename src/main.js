@@ -8,9 +8,9 @@ const crypto = require('crypto');
 const os = require('os');
 
 const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
-// const db = new SQLite( "data.db");
+const db = new SQLite( "data.db");
 
-const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
+// const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
 
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -23,6 +23,9 @@ const initDb = () => {
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       role TEXT NOT NULL,
+      name TEXT,
+      mobile TEXT,
+      department TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -31,6 +34,8 @@ const initDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
       organization_name TEXT NOT NULL,
+      head_of_institution TEXT,
+      mobile_no TEXT,
       serial_mac_id TEXT NOT NULL,
       activation_code TEXT NOT NULL UNIQUE,
       start_date DATETIME,
@@ -113,14 +118,22 @@ ipcMain.handle("activate-product", async (event, activationData) => {
       `${API_BASE_URL}/product-keys/activation`,
       activationData
     );
-
+console.log(response.data,"responsesssssssssssss")
     // Only insert into database if activation is successful
     if (response.data.activationStatus === "Active") {
+      // Extract dates from the main DB response
+      const { activation_date, expiry_date } = response.data;
+
       const insertActivationStmt = db.prepare(`
         INSERT INTO Activations (
-          email, organization_name, serial_mac_id,
-          activation_code, start_date, end_date
-        ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'))
+          email, 
+          organization_name, 
+          serial_mac_id,
+          activation_code, 
+          start_date,      
+          end_date,        
+          created_at      
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
       `);
 
       const insertUserStmt = db.prepare(`
@@ -135,19 +148,20 @@ ipcMain.handle("activate-product", async (event, activationData) => {
           activationData.email,
           activationData.institutionName,
           activationData.serial_number,
-          activationData.activation_key
+          activationData.activation_key,
+          activation_date,    // From main DB
+          expiry_date        // From main DB
         );
 
         insertUserStmt.run(
           activationData.email,
-          activationData.password, // Assuming password is already hashed
+          activationData.password,
           'admin'
         );
       });
 
       transaction();
 
-      // Return the full response data so frontend can check activation status
       return { success: true, data: response.data };
     }
 
@@ -188,6 +202,28 @@ ipcMain.handle("get-user-credentials", () => {
   `);
   const credentials = stmt.get();
   return credentials;
+});
+
+ipcMain.handle("get-user-details", async (event, userId) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, username, password, role, name, mobile, department
+      FROM Users
+      WHERE id = ?
+    `);
+    
+    const user = stmt.get(userId);
+    console.log("Retrieved user details:", user); // For debugging
+    
+    if (user) {
+      return { success: true, user };
+    } else {
+      return { success: false, error: "User not found" };
+    }
+  } catch (error) {
+    console.error("Get user details error:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle("add-content-path", async (event, contentPath) => {
@@ -302,6 +338,194 @@ ipcMain.handle("openFile", async (event, filePath) => {
 ipcMain.handle("handleFileError", async (event, error) => {
   console.error('File handling error:', error);
   return { success: false, error: error.message };
+});
+
+// Add user to database
+ipcMain.handle("add-user", async (event, userData) => {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO Users (
+        username, password, role, name, mobile, department
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      userData.username,
+      userData.password,
+      userData.role,
+      userData.name || null,
+      userData.mobile || null,
+      userData.department || null
+    );
+
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    console.error("Add user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get all users
+ipcMain.handle("get-users", () => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, username, role, name, mobile, department
+      FROM Users
+      ORDER BY created_at DESC
+    `);
+    return stmt.all();
+  } catch (error) {
+    console.error("Get users error:", error);
+    return [];
+  }
+});
+
+// Login user
+ipcMain.handle("login-user", async (event, username, password) => {
+  try {
+    console.log("Login attempt with:", { username, password });
+
+    const stmt = db.prepare(`
+      SELECT id, username, role
+      FROM Users
+      WHERE username = ? AND password = ?
+    `);
+    
+    const user = stmt.get(username, password);
+    console.log("Found user:", user);
+    
+    if (user) {
+      return { success: true, user };
+    } else {
+      return { success: false, error: "Invalid credentials" };
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Debug handler
+ipcMain.handle("debug-users", () => {
+  try {
+    const stmt = db.prepare("SELECT * FROM Users");
+    const users = stmt.all();
+    console.log("All users in database:", users);
+    return users;
+  } catch (error) {
+    console.error("Debug users error:", error);
+    return [];
+  }
+});
+
+// Add these new handlers
+ipcMain.handle("update-user", async (event, userData) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE Users 
+      SET username = ?, name = ?, mobile = ?, role = ?, department = ?
+      ${userData.password ? ', password = ?' : ''}
+      WHERE id = ?
+    `);
+    
+    const params = [
+      userData.username,
+      userData.name,
+      userData.mobile,
+      userData.role,
+      userData.department,
+      ...(userData.password ? [userData.password] : []),
+      userData.id
+    ];
+
+    const result = stmt.run(...params);
+    return { success: true, changes: result.changes };
+  } catch (error) {
+    console.error("Update user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("delete-user", async (event, userId) => {
+  try {
+    console.log("Attempting to delete user:", userId); // For debugging
+    
+    const stmt = db.prepare('DELETE FROM Users WHERE id = ?');
+    const result = stmt.run(userId);
+    
+    console.log("Delete result:", result); // For debugging
+    
+    if (result.changes > 0) {
+      return { success: true, changes: result.changes };
+    } else {
+      return { success: false, error: "User not found or could not be deleted" };
+    }
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get organization details
+ipcMain.handle("get-organization-details", async () => {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        a.organization_name,
+        a.email,
+        a.serial_mac_id,
+        a.activation_code,
+        a.start_date,
+        a.end_date,
+        a.created_at,
+        a.mobile_no,
+        a.head_of_institution
+      FROM Activations a
+      ORDER BY a.created_at DESC
+      LIMIT 1
+    `);
+    
+    const data = stmt.get();
+    
+    if (!data) {
+      return { success: false, error: "No activation found" };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error getting organization details:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Update organization details
+ipcMain.handle("update-organization-details", async (event, data) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE Activations 
+      SET 
+        organization_name = ?,
+        mobile_no = ?,
+        head_of_institution = ?,
+        updated_at = datetime('now')
+      WHERE id = (
+        SELECT id FROM Activations 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      )
+    `);
+    
+    stmt.run(
+      data.organization_name,
+      data.mobile_no,
+      data.head_of_institution
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating organization details:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 app.whenReady().then(createWindow);

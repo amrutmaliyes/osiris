@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar.jsx";
 import {
   Card,
@@ -17,6 +17,9 @@ import {
   Table,
   ActionIcon,
 } from "@mantine/core";
+import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { modals } from '@mantine/modals';
+import { notifications } from '@mantine/notifications';
 
 const Users = () => {
   // Breadcrumb items
@@ -28,6 +31,7 @@ const Users = () => {
 
   // Form state
   const [formData, setFormData] = useState({
+    id: null,
     name: "",
     email: "",
     password: "",
@@ -40,59 +44,121 @@ const Users = () => {
   // Users list state
   const [users, setUsers] = useState([]);
 
+  // Editing state
+  const [isEditing, setIsEditing] = useState(false);
+
   // Handle input changes
   const handleInputChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
   };
 
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Basic validation
     if (
       !formData.name ||
       !formData.email ||
-      !formData.password ||
       !formData.mobile ||
       !formData.role ||
       !formData.department
     ) {
-      alert("Please fill in all required fields");
+      notifications.show({
+        title: 'Error',
+        message: 'Please fill in all required fields',
+        color: 'red',
+      });
       return;
     }
 
-    if (formData.password !== formData.rePassword) {
-      alert("Passwords do not match");
+    if (!isEditing && formData.password !== formData.rePassword) {
+      notifications.show({
+        title: 'Error',
+        message: 'Passwords do not match',
+        color: 'red',
+      });
       return;
     }
 
-    // Add new user to the list
-    setUsers([
-      ...users,
-      {
-        id: users.length + 1,
-        name: formData.name,
-        email: formData.email,
-        mobile: formData.mobile,
-        role: formData.role,
-        department: formData.department,
-      },
-    ]);
+    try {
+      if (isEditing) {
+        // Only include password in update if it has been changed
+        const updateData = {
+          id: formData.id,
+          username: formData.email,
+          name: formData.name,
+          mobile: formData.mobile,
+          role: formData.role,
+          department: formData.department,
+        };
 
-    // Clear form
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      rePassword: "",
-      mobile: "",
-      role: "",
-      department: "",
-    });
+        // Only include password if it has been changed
+        if (formData.password && formData.password !== '') {
+          updateData.password = formData.password;
+        }
+
+        const result = await window.electronAPI.updateUser(updateData);
+        
+        if (result.success) {
+          // Update users list
+          setUsers(users.map(user => 
+            user.id === formData.id 
+              ? { ...user, 
+                  username: formData.email,
+                  name: formData.name,
+                  mobile: formData.mobile,
+                  role: formData.role,
+                  department: formData.department,
+                } 
+              : user
+          ));
+
+          notifications.show({
+            title: 'Success',
+            message: 'User updated successfully',
+            color: 'green',
+          });
+        }
+      } else {
+        // Add new user
+        const result = await window.electronAPI.addUser({
+          username: formData.email,
+          password: formData.password,
+          name: formData.name,
+          mobile: formData.mobile,
+          role: formData.role,
+          department: formData.department,
+        });
+
+        if (result.success) {
+          setUsers([
+            ...users,
+            {
+              id: result.id,
+              username: formData.email,
+              name: formData.name,
+              mobile: formData.mobile,
+              role: formData.role,
+              department: formData.department,
+            },
+          ]);
+        }
+      }
+
+      // Clear form
+      handleCancel();
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: error.message,
+        color: 'red',
+      });
+    }
   };
 
   // Handle form cancel
   const handleCancel = () => {
     setFormData({
+      id: null,
       name: "",
       email: "",
       password: "",
@@ -101,6 +167,75 @@ const Users = () => {
       role: "",
       department: "",
     });
+    setIsEditing(false);
+  };
+
+  // Load existing users when component mounts
+  useEffect(() => {
+    const loadUsers = async () => {
+      const dbUsers = await window.electronAPI.getUsers();
+      setUsers(dbUsers);
+    };
+    loadUsers();
+  }, []);
+
+  const handleEdit = async (user) => {
+    try {
+      console.log("Editing user:", user); // For debugging
+      
+      // Get the user's full details including password
+      const userDetails = await window.electronAPI.getUserDetails(user.id);
+      console.log("User details:", userDetails); // For debugging
+      
+      setFormData({
+        id: user.id,
+        name: user.name,
+        email: user.username,
+        password: userDetails.password, // Include the password
+        rePassword: userDetails.password, // Set rePassword to match
+        mobile: user.mobile,
+        role: user.role,
+        department: user.department,
+      });
+      setIsEditing(true);
+    } catch (error) {
+      console.error("Edit error:", error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to load user details',
+        color: 'red',
+        autoClose: 3000,
+      });
+    }
+  };
+
+  const handleDelete = async (userId) => {
+    try {
+      const result = await window.electronAPI.deleteUser(userId);
+      console.log("Delete result:", result); // For debugging
+      
+      if (result.success) {
+        // Remove user from the local state
+        setUsers(users.filter(user => user.id !== userId));
+        
+        notifications.show({
+          title: 'Success',
+          message: 'User deleted successfully',
+          color: 'green',
+          autoClose: 2000,
+        });
+      } else {
+        throw new Error(result.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      notifications.show({
+        title: 'Error',
+        message: error.message,
+        color: 'red',
+        autoClose: 3000,
+      });
+    }
   };
 
   return (
@@ -174,7 +309,7 @@ const Users = () => {
             <PasswordInput
               label="Password"
               placeholder="Enter password"
-              required
+              required={!isEditing}
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
               styles={{
@@ -187,9 +322,9 @@ const Users = () => {
               }}
             />
             <PasswordInput
-              label="Re-Password"
-              placeholder="Confirm password"
-              required
+              label="Confirm Password"
+              placeholder="Re-enter password"
+              required={!isEditing}
               value={formData.rePassword}
               onChange={(e) => handleInputChange("rePassword", e.target.value)}
               styles={{
@@ -384,11 +519,19 @@ const Users = () => {
 
                       <td>
                         <Group spacing={4}>
-                          <ActionIcon color="yellow" variant="filled">
-                            E
+                          <ActionIcon 
+                            color="blue" 
+                            variant="filled"
+                            onClick={() => handleEdit(user)}
+                          >
+                            <IconEdit size={18} />
                           </ActionIcon>
-                          <ActionIcon color="red" variant="filled">
-                            D
+                          <ActionIcon 
+                            color="red" 
+                            variant="filled"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <IconTrash size={18} />
                           </ActionIcon>
                         </Group>
                       </td>

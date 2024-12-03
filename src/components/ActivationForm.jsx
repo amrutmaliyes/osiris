@@ -78,13 +78,16 @@ const ActivationForm = ({ onActivationSuccess }) => {
         serial_number: systemInfo.os,
         version: "1.0",
         email: formData.email,
-        password:formData.password,
+        password: formData.password,
         institutionName: formData.institutionName,
       };
 
       const result = await window.electronAPI.activateProduct(activationData);
 
       if (result.success && result.data.activationStatus === "Active") {
+        const users = await window.electronAPI.debugUsers();
+        console.log("Users after activation:", users);
+
         notifications.show({
           title: "Success",
           message: "Product activated successfully!",
@@ -92,10 +95,8 @@ const ActivationForm = ({ onActivationSuccess }) => {
           autoClose: 3000,
         });
         
-        // Call the prop function to update parent state
         onActivationSuccess();
         
-        // Navigate to login
         setTimeout(() => {
           navigate("/login");
         }, 1500);

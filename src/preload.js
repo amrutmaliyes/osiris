@@ -17,5 +17,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   readDirectory: (path) => ipcRenderer.invoke("readDirectory", path),
   openFile: (path) => ipcRenderer.invoke("openFile", path),
   handleFileError: (error) => ipcRenderer.invoke("handleFileError", error),
-  openWithDefaultApp: (path) => ipcRenderer.invoke("openWithDefaultApp", path)
+  openWithDefaultApp: (path) => ipcRenderer.invoke("openWithDefaultApp", path),
+  addUser: (userData) => ipcRenderer.invoke("add-user", userData),
+  getUsers: () => ipcRenderer.invoke("get-users"),
+  loginUser: (username, password) => ipcRenderer.invoke("login-user", username, password),
+  debugUsers: () => ipcRenderer.invoke("debug-users"),
+  updateUser: (userData) => ipcRenderer.invoke("update-user", userData),
+  deleteUser: (userId) => ipcRenderer.invoke("delete-user", userId),
+  getUserDetails: (userId) => ipcRenderer.invoke("get-user-details", userId),
 });
