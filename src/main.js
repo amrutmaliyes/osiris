@@ -140,7 +140,7 @@ console.log(response.data,"responsesssssssssssss")
 
       const insertUserStmt = db.prepare(`
         INSERT INTO Users (
-          username, password, role, mobile,
+          username, password, role, mobile
         ) VALUES (?, ?, ?, ?)
       `);
 
@@ -160,7 +160,8 @@ console.log(response.data,"responsesssssssssssss")
         insertUserStmt.run(
           activationData.email,
           activationData.password,
-          'admin'
+          'admin',
+          activationData.mobileNo
         );
       });
 
