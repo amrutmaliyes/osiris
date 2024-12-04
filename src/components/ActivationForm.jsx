@@ -80,6 +80,10 @@ const ActivationForm = ({ onActivationSuccess }) => {
         email: formData.email,
         password: formData.password,
         institutionName: formData.institutionName,
+        headOfInstitution: formData.headOfInstitution,
+        mobileNo:formData.mobileNo
+        
+
       };
 
       const result = await window.electronAPI.activateProduct(activationData);

@@ -34,8 +34,8 @@ const initDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
       organization_name TEXT NOT NULL,
-      head_of_institution TEXT,
-      mobile_no TEXT,
+      head_of_institution TEXT NOT NULL,
+      mobile_no TEXT NOT NULL,
       serial_mac_id TEXT NOT NULL,
       activation_code TEXT NOT NULL UNIQUE,
       start_date DATETIME,
@@ -126,20 +126,22 @@ console.log(response.data,"responsesssssssssssss")
 
       const insertActivationStmt = db.prepare(`
         INSERT INTO Activations (
-          email, 
-          organization_name, 
+          email,
+          organization_name,
+          head_of_institution,
+          mobile_no,
           serial_mac_id,
-          activation_code, 
-          start_date,      
-          end_date,        
-          created_at      
-        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+          activation_code,
+          start_date,
+          end_date,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `);
 
       const insertUserStmt = db.prepare(`
         INSERT INTO Users (
-          username, password, role
-        ) VALUES (?, ?, ?)
+          username, password, role, mobile
+        ) VALUES (?, ?, ?, ?)
       `);
 
       // Start a transaction to ensure both inserts succeed or fail together
@@ -147,16 +149,19 @@ console.log(response.data,"responsesssssssssssss")
         insertActivationStmt.run(
           activationData.email,
           activationData.institutionName,
+          activationData.headOfInstitution,
+          activationData.mobileNo,
           activationData.serial_number,
           activationData.activation_key,
-          activation_date,    // From main DB
-          expiry_date        // From main DB
+          activation_date,
+          expiry_date
         );
 
         insertUserStmt.run(
           activationData.email,
           activationData.password,
-          'admin'
+          'admin',
+          activationData.mobileNo
         );
       });
 
@@ -471,17 +476,15 @@ ipcMain.handle("get-organization-details", async () => {
   try {
     const stmt = db.prepare(`
       SELECT 
-        a.organization_name,
-        a.email,
-        a.serial_mac_id,
-        a.activation_code,
-        a.start_date,
-        a.end_date,
-        a.created_at,
-        a.mobile_no,
-        a.head_of_institution
-      FROM Activations a
-      ORDER BY a.created_at DESC
+        organization_name,
+        email,
+        mobile_no,
+        head_of_institution,
+        start_date,
+        end_date,
+        created_at
+      FROM Activations
+      ORDER BY created_at DESC
       LIMIT 1
     `);
     
@@ -491,7 +494,23 @@ ipcMain.handle("get-organization-details", async () => {
       return { success: false, error: "No activation found" };
     }
 
-    return { success: true, data };
+    // Calculate days consumed and remaining
+    const startDate = new Date(data.start_date);
+    const endDate = new Date(data.end_date);
+    const today = new Date();
+
+    const daysConsumed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.floor((endDate - today) / (1000 * 60 * 60 * 24));
+  // console.log();
+
+    return {
+      success: true,
+      data: {
+        ...data,
+        daysConsumed: Math.max(0, daysConsumed),
+        daysLeft: Math.max(0, daysLeft)
+      }
+    };
   } catch (error) {
     console.error("Error getting organization details:", error);
     return { success: false, error: error.message };
@@ -515,16 +534,151 @@ ipcMain.handle("update-organization-details", async (event, data) => {
       )
     `);
     
-    stmt.run(
+    const result = stmt.run(
       data.organization_name,
       data.mobile_no,
       data.head_of_institution
     );
 
-    return { success: true };
+    if (result.changes > 0) {
+      return { success: true };
+    } else {
+      return { success: false, error: "No records were updated" };
+    }
   } catch (error) {
     console.error("Error updating organization details:", error);
     return { success: false, error: error.message };
+  }
+});
+
+// Add these new handlers
+ipcMain.handle("add-content-item", async (event, data) => {
+  try {
+    // First check if the content item already exists
+    const checkStmt = db.prepare(`
+      SELECT id FROM ContentItems 
+      WHERE folder_id = ? AND title = ?
+    `);
+    
+    let existingItem = checkStmt.get(data.folderId, data.title);
+    
+    if (existingItem) {
+      return { success: true, id: existingItem.id };
+    }
+
+    // If it doesn't exist, insert it
+    const insertStmt = db.prepare(`
+      INSERT INTO ContentItems (
+        folder_id, 
+        title, 
+        description
+      ) VALUES (?, ?, ?)
+    `);
+    
+    const result = insertStmt.run(
+      data.folderId,
+      data.title,
+      data.description
+    );
+    
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    console.error("Error adding content item:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("update-content-progress", async (event, data) => {
+  try {
+    // First check if progress already exists
+    const checkStmt = db.prepare(`
+      SELECT id FROM ContentProgress 
+      WHERE user_id = ? AND content_item_id = ?
+    `);
+    
+    const existingProgress = checkStmt.get(data.userId, data.contentItemId);
+    
+    let stmt;
+    if (existingProgress) {
+      // Update existing progress
+      stmt = db.prepare(`
+        UPDATE ContentProgress 
+        SET completion_percentage = ?,
+            status = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND content_item_id = ?
+      `);
+      
+      stmt.run(
+        data.completionPercentage,
+        data.status,
+        data.userId,
+        data.contentItemId
+      );
+    } else {
+      // Insert new progress
+      stmt = db.prepare(`
+        INSERT INTO ContentProgress (
+          user_id,
+          folder_id,
+          content_item_id,
+          completion_percentage,
+          status
+        ) VALUES (?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run(
+        data.userId,
+        data.folderId,
+        data.contentItemId,
+        data.completionPercentage,
+        data.status
+      );
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating content progress:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("get-content-progress", async (event, userId) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        cp.*,
+        ci.title,
+        ci.description,
+        cp.completion_percentage
+      FROM ContentProgress cp
+      JOIN ContentItems ci ON cp.content_item_id = ci.id
+      WHERE cp.user_id = ?
+    `);
+    
+    const progress = stmt.all(userId);
+    return { success: true, progress };
+  } catch (error) {
+    console.error("Error getting content progress:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Debug helper to check tables
+ipcMain.handle("debug-tables", async () => {
+  try {
+    const contentPaths = db.prepare("SELECT * FROM ContentPaths").all();
+    const contentItems = db.prepare("SELECT * FROM ContentItems").all();
+    const contentProgress = db.prepare("SELECT * FROM ContentProgress").all();
+    
+    console.log('ContentPaths:', contentPaths);
+    console.log('ContentItems:', contentItems);
+    console.log('ContentProgress:', contentProgress);
+    
+    return { contentPaths, contentItems, contentProgress };
+  } catch (error) {
+    console.error("Debug tables error:", error);
+    return { error: error.message };
   }
 });
 

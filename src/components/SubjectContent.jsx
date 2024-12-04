@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Text, Paper, Accordion, Group, Button } from "@mantine/core";
+import { Text, Paper, Accordion, Group, Button, Progress } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
+import useProgressStore from '../stores/progressStore';
 
 const SubjectContent = ({ subject, classNumber, contentPath }) => {
   const [allSubjects, setAllSubjects] = useState([]);
@@ -8,6 +9,14 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
   const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [chapterContent, setChapterContent] = useState([]);
+  const userId = localStorage.getItem("userId");
+  const [activeContent, setActiveContent] = useState(null);
+  const { 
+    chapterProgress, 
+    contentProgress: storedContentProgress, 
+    setChapterProgress, 
+    setContentProgress 
+  } = useProgressStore();
 
   useEffect(() => {
     loadSubjects();
@@ -25,6 +34,22 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       loadChapterContent();
     }
   }, [selectedChapter]);
+
+  useEffect(() => {
+    const getActiveContent = async () => {
+      const contentPaths = await window.electronAPI.getContentPaths();
+      const active = contentPaths.find(path => path.is_active);
+      setActiveContent(active);
+      if (active) {
+        loadProgressFromDB();
+      }
+    };
+    getActiveContent();
+  }, []);
+
+  useEffect(() => {
+    loadProgressFromDB();
+  }, [userId]);
 
   const loadSubjects = async () => {
     try {
@@ -53,23 +78,97 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       const chapterPath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}`;
       const files = await window.electronAPI.readDirectory(chapterPath);
       setChapterContent(files);
+      
+      // Calculate initial progress for this chapter
+      const progress = calculateChapterProgress(files);
+      setChapterProgress(prev => ({
+        ...prev,
+        [selectedChapter]: progress
+      }));
     } catch (error) {
       console.error('Error loading chapter content:', error);
     }
   };
 
+  const loadProgressFromDB = async () => {
+    if (!userId || !activeContent) return;
+
+    try {
+      const result = await window.electronAPI.getContentProgress(parseInt(userId));
+      if (result.success) {
+        const progressMap = {};
+        result.progress.forEach(item => {
+          progressMap[item.title] = {
+            percentage: item.completion_percentage || 0,
+            status: item.status || 'not-started'
+          };
+          setContentProgress(item.title, {
+            percentage: item.completion_percentage || 0,
+            status: item.status || 'not-started'
+          });
+        });
+        setContentProgress(progressMap);
+        
+        // Calculate chapter progress based on DB data
+        chapters.forEach(chapter => {
+          const chapterFiles = chapterContent;
+          const progress = calculateChapterProgress(chapterFiles);
+          setChapterProgress(chapter, progress);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading progress from DB:', error);
+    }
+  };
+
+  const calculateChapterProgress = (files) => {
+    const totalFiles = files.length;
+    if (totalFiles === 0) return 0;
+
+    const completedFiles = files.filter(
+      file => storedContentProgress[file]?.percentage === 100
+    ).length;
+
+    return Math.round((completedFiles / totalFiles) * 100);
+  };
+
   const handleFileOpen = async (fileName) => {
     try {
+      if (!activeContent) return;
+
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
       const result = await window.electronAPI.openFile(filePath);
       
-      if (!result.success) {
-        console.error('Failed to open file:', result.error);
-        alert(`Failed to open file: ${result.error}`);
+      if (result.success) {
+        const contentItemResult = await window.electronAPI.addContentItem({
+          folderId: activeContent.id,
+          title: fileName,
+          description: `Class ${classNumber} - ${selectedSubject} - ${selectedChapter}`
+        });
+
+        if (contentItemResult.success) {
+          // Update DB
+          await window.electronAPI.updateContentProgress({
+            userId: parseInt(userId),
+            folderId: activeContent.id,
+            contentItemId: contentItemResult.id,
+            completionPercentage: 100,
+            status: 'completed'
+          });
+
+          // Update Zustand store
+          setContentProgress(fileName, { 
+            percentage: 100, 
+            status: 'completed' 
+          });
+
+          // Recalculate chapter progress
+          const newProgress = calculateChapterProgress(chapterContent);
+          setChapterProgress(selectedChapter, newProgress);
+        }
       }
     } catch (error) {
       console.error('Error handling file:', error);
-      alert('Error opening file');
     }
   };
 
@@ -108,6 +207,44 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
         return 'Open';
     }
   };
+
+  const renderFileItem = (file, fileIndex) => (
+    <Group 
+      key={fileIndex}
+      style={{
+        padding: "10px",
+        borderBottom: "1px solid #eee",
+        alignItems: "center",
+        backgroundColor: "white",
+        borderRadius: "8px",
+        margin: "5px 0"
+      }}
+    >
+      {getFileIcon(file)}
+      <Text style={{ flex: 1 }}>{file}</Text>
+      <div style={{ width: "200px", marginRight: "15px" }}>
+        <Progress 
+          value={storedContentProgress[file]?.percentage || 0}
+          size="sm"
+          radius="xl"
+          color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+          striped
+          animate
+        />
+        <Text size="xs" color="dimmed" align="center" mt={5}>
+          {storedContentProgress[file]?.percentage || 0}% Completed
+        </Text>
+      </div>
+      <Button
+        variant="light"
+        color="orange"
+        onClick={() => handleFileOpen(file)}
+        radius="md"
+      >
+        {getFileTypeLabel(file)}
+      </Button>
+    </Group>
+  );
 
   return (
     <div style={{ display: "flex", width: "100%" }}>
@@ -181,11 +318,33 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
               onClick={() => setSelectedChapter(chapter)}
             >
               <Accordion.Control>
-                <Group>
-                  <IconBook size={20} />
-                  <Text>{chapter}</Text>
+                <Group position="apart" style={{ width: '100%' }}>
+                  <Group>
+                    <IconBook size={20} />
+                    <Text>{chapter}</Text>
+                  </Group>
+                  
+                  <Group spacing="xs" style={{ width: '300px' }}>
+                    <div style={{ flex: 1 }}>
+                      <Progress 
+                        value={chapterProgress[chapter] || 0}
+                        size="md"
+                        radius="xl"
+                        color={chapterProgress[chapter] === 100 ? "green" : "orange"}
+                        striped
+                        animate
+                      />
+                      <Text size="xs" color="dimmed" align="center" mt={5}>
+                        {chapterProgress[chapter] || 0}% Complete
+                        {chapterContent.length > 0 && ` (${chapterContent.filter(
+                          file => storedContentProgress[file]?.percentage === 100
+                        ).length}/${chapterContent.length} files)`}
+                      </Text>
+                    </div>
+                  </Group>
                 </Group>
               </Accordion.Control>
+              
               <Accordion.Panel>
                 {selectedChapter === chapter && chapterContent.map((file, fileIndex) => (
                   <Group 
@@ -198,12 +357,26 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
                   >
                     {getFileIcon(file)}
                     <Text style={{ flex: 1 }}>{file}</Text>
+                    <div style={{ width: "200px", marginRight: "15px" }}>
+                      <Progress 
+                        value={storedContentProgress[file]?.percentage || 0}
+                        size="sm"
+                        radius="xl"
+                        color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+                        striped
+                        animate
+                      />
+                      <Text size="xs" color="dimmed" align="center" mt={5}>
+                        {storedContentProgress[file]?.percentage || 0}% Completed
+                      </Text>
+                    </div>
                     <Button
                       variant="light"
                       color="orange"
                       onClick={() => handleFileOpen(file)}
+                      radius="md"
                     >
-                      Watch
+                      Open
                     </Button>
                   </Group>
                 ))}

@@ -505,7 +505,7 @@ const Users = () => {
                         {user.name}
                       </td>
                       <td style={{ padding: "10px", fontSize: "18px" }}>
-                        {user.email}
+                        {user.username}
                       </td>
                       <td style={{ padding: "10px", fontSize: "18px" }}>
                         {user.mobile}

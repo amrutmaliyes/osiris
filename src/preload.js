@@ -25,4 +25,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateUser: (userData) => ipcRenderer.invoke("update-user", userData),
   deleteUser: (userId) => ipcRenderer.invoke("delete-user", userId),
   getUserDetails: (userId) => ipcRenderer.invoke("get-user-details", userId),
+  getOrganizationDetails: () => ipcRenderer.invoke("get-organization-details"),
+  updateOrganizationDetails: (data) => ipcRenderer.invoke("update-organization-details", data),
+  addContentItem: (data) => ipcRenderer.invoke("add-content-item", data),
+  updateContentProgress: (data) => ipcRenderer.invoke("update-content-progress", data),
+  getContentProgress: (userId) => ipcRenderer.invoke("get-content-progress", userId),
 });
