@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar.jsx";
 import {
   Container,
@@ -10,24 +10,99 @@ import {
   Divider,
   Breadcrumbs,
   Anchor,
+  Tooltip,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 
 const Account = () => {
-  // Form state
+  // Updated form state
   const [formData, setFormData] = useState({
-    schoolName: "Test",
-    email: "admin@gmail.com",
-    mobile: "1234567890",
-    image: null,
+    organization_name: "",
+    email: "",
+    mobile_no: "",
+    head_of_institution: "",
   });
 
-  // Product key details
-  const [productDetails] = useState({
-    startDate: "16/11/2024",
-    endDate: "16/02/2025",
-    daysConsumed: "0",
-    daysLeft: "93",
+  // Product key details state
+  const [productDetails, setProductDetails] = useState({
+    startDate: "",
+    endDate: "",
+    daysConsumed: "",
+    daysLeft: "",
   });
+
+  // Load organization details
+  useEffect(() => {
+    loadOrganizationDetails();
+  }, []);
+
+  const loadOrganizationDetails = async () => {
+    try {
+      const response = await window.electronAPI.getOrganizationDetails();
+      if (response.success) {
+        const { data } = response;
+        setFormData({
+          organization_name: data.organization_name,
+          email: data.email,
+          mobile_no: data.mobile_no,
+          head_of_institution: data.head_of_institution,
+        });
+
+        // Calculate days consumed and remaining
+        const start = new Date(data.start_date);
+        const end = new Date(data.end_date);
+        const today = new Date();
+
+        const daysConsumed = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.floor((end - today) / (1000 * 60 * 60 * 24));
+
+        setProductDetails({
+          startDate: start.toLocaleDateString(),
+          endDate: end.toLocaleDateString(),
+          daysConsumed: Math.max(0, daysConsumed),
+          daysLeft: Math.max(0, daysLeft),
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: "Failed to load organization details",
+        color: "red",
+      });
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await window.electronAPI.updateOrganizationDetails({
+        organization_name: formData.organization_name,
+        mobile_no: formData.mobile_no,
+        head_of_institution: formData.head_of_institution,
+      });
+
+      if (response.success) {
+        notifications.show({
+          title: "Success",
+          message: "Organization details updated successfully",
+          color: "green",
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: "Failed to update organization details",
+        color: "red",
+      });
+    }
+  };
+
+  const handleRefresh = () => {
+    console.log("Refreshing product details");
+  };
 
   // Breadcrumb items
   const breadcrumbItems = [{ title: "Account", href: "/" }].map(
@@ -37,18 +112,6 @@ const Account = () => {
       </Anchor>
     )
   );
-
-  const handleInputChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const handleSubmit = () => {
-    console.log("Form submitted:", formData);
-  };
-
-  const handleRefresh = () => {
-    console.log("Refreshing product details");
-  };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -96,35 +159,49 @@ const Account = () => {
           >
             <TextInput
               label="School Name"
-              value={formData.schoolName}
-              onChange={(e) => handleInputChange("schoolName", e.target.value)}
+              value={formData.organization_name}
+              onChange={(e) => handleInputChange("organization_name", e.target.value)}
               styles={{
                 input: { fontSize: "20px", height: "50px" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
-            <TextInput
-              label="Email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              styles={{
-                input: { fontSize: "20px", height: "50px" },
-                label: { fontSize: "20px", marginBottom: "8px" },
-              }}
-            />
+            
+            <Tooltip
+              label="Please contact support to change your email address"
+              position="top"
+              withArrow
+            >
+              <TextInput
+                label="Email"
+                value={formData.email}
+                readOnly
+                styles={{
+                  input: { 
+                    fontSize: "20px", 
+                    height: "50px",
+                    backgroundColor: "#f1f3f5",
+                    cursor: "not-allowed"
+                  },
+                  label: { fontSize: "20px", marginBottom: "8px" },
+                }}
+              />
+            </Tooltip>
+
             <TextInput
               label="Mobile"
-              value={formData.mobile}
-              onChange={(e) => handleInputChange("mobile", e.target.value)}
+              value={formData.mobile_no}
+              onChange={(e) => handleInputChange("mobile_no", e.target.value)}
               styles={{
                 input: { fontSize: "20px", height: "50px" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
-            <FileInput
-              label="Image"
-              placeholder="Choose Image"
-              onChange={(file) => handleInputChange("image", file)}
+
+            <TextInput
+              label="Head of Institution"
+              value={formData.head_of_institution}
+              onChange={(e) => handleInputChange("head_of_institution", e.target.value)}
               styles={{
                 input: { fontSize: "20px", height: "50px" },
                 label: { fontSize: "20px", marginBottom: "8px" },
@@ -178,11 +255,7 @@ const Account = () => {
               value={productDetails.startDate}
               readOnly
               styles={{
-                input: {
-                  fontSize: "20px",
-                  height: "50px",
-                  backgroundColor: "#f1f3f5",
-                },
+                input: { fontSize: "20px", height: "50px", backgroundColor: "#f1f3f5" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
@@ -191,11 +264,7 @@ const Account = () => {
               value={productDetails.endDate}
               readOnly
               styles={{
-                input: {
-                  fontSize: "20px",
-                  height: "50px",
-                  backgroundColor: "#f1f3f5",
-                },
+                input: { fontSize: "20px", height: "50px", backgroundColor: "#f1f3f5" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
@@ -204,11 +273,7 @@ const Account = () => {
               value={productDetails.daysConsumed}
               readOnly
               styles={{
-                input: {
-                  fontSize: "20px",
-                  height: "50px",
-                  backgroundColor: "#f1f3f5",
-                },
+                input: { fontSize: "20px", height: "50px", backgroundColor: "#f1f3f5" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
@@ -217,11 +282,7 @@ const Account = () => {
               value={productDetails.daysLeft}
               readOnly
               styles={{
-                input: {
-                  fontSize: "20px",
-                  height: "50px",
-                  backgroundColor: "#f1f3f5",
-                },
+                input: { fontSize: "20px", height: "50px", backgroundColor: "#f1f3f5" },
                 label: { fontSize: "20px", marginBottom: "8px" },
               }}
             />
