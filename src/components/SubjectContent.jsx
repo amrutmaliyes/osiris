@@ -8,6 +8,9 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
   const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [chapterContent, setChapterContent] = useState([]);
+  const [contentProgress, setContentProgress] = useState({});
+  const userId = localStorage.getItem("userId");
+  const [activeContent, setActiveContent] = useState(null);
 
   useEffect(() => {
     loadSubjects();
@@ -25,6 +28,19 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       loadChapterContent();
     }
   }, [selectedChapter]);
+
+  useEffect(() => {
+    loadContentProgress();
+  }, [userId]);
+
+  useEffect(() => {
+    const getActiveContent = async () => {
+      const contentPaths = await window.electronAPI.getContentPaths();
+      const active = contentPaths.find(path => path.is_active);
+      setActiveContent(active);
+    };
+    getActiveContent();
+  }, []);
 
   const loadSubjects = async () => {
     try {
@@ -58,18 +74,56 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
     }
   };
 
+  const loadContentProgress = async () => {
+    if (!userId || !activeContent) return;
+
+    try {
+      const result = await window.electronAPI.getContentProgress(parseInt(userId));
+      if (result.success) {
+        const progressMap = {};
+        result.progress.forEach(item => {
+          progressMap[item.title] = item;
+        });
+        setContentProgress(progressMap);
+      }
+    } catch (error) {
+      console.error('Error loading content progress:', error);
+    }
+  };
+
   const handleFileOpen = async (fileName) => {
     try {
+      if (!activeContent) {
+        console.error('No active content path found');
+        return;
+      }
+
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
       const result = await window.electronAPI.openFile(filePath);
       
-      if (!result.success) {
+      if (result.success) {
+        const contentItemResult = await window.electronAPI.addContentItem({
+          folderId: activeContent.id,
+          title: fileName,
+          description: `Class ${classNumber} - ${selectedSubject} - ${selectedChapter}`
+        });
+
+        if (contentItemResult.success) {
+          await window.electronAPI.updateContentProgress({
+            userId: parseInt(userId),
+            folderId: activeContent.id,
+            contentItemId: contentItemResult.id,
+            completionPercentage: 100,
+            status: 'completed'
+          });
+
+          await loadContentProgress();
+        }
+      } else {
         console.error('Failed to open file:', result.error);
-        alert(`Failed to open file: ${result.error}`);
       }
     } catch (error) {
       console.error('Error handling file:', error);
-      alert('Error opening file');
     }
   };
 
@@ -108,6 +162,34 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
         return 'Open';
     }
   };
+
+  const renderFileItem = (file, fileIndex) => (
+    <Group 
+      key={fileIndex}
+      style={{
+        padding: "10px",
+        borderBottom: "1px solid #eee",
+        alignItems: "center"
+      }}
+    >
+      {getFileIcon(file)}
+      <Text style={{ flex: 1 }}>{file}</Text>
+      <div style={{ marginRight: "10px" }}>
+        {contentProgress[file] && (
+          <Text size="sm" color="dimmed">
+            {contentProgress[file].status === 'completed' ? '✓ Completed' : 'In Progress'}
+          </Text>
+        )}
+      </div>
+      <Button
+        variant="light"
+        color="orange"
+        onClick={() => handleFileOpen(file)}
+      >
+        {getFileTypeLabel(file)}
+      </Button>
+    </Group>
+  );
 
   return (
     <div style={{ display: "flex", width: "100%" }}>
@@ -188,24 +270,7 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
               </Accordion.Control>
               <Accordion.Panel>
                 {selectedChapter === chapter && chapterContent.map((file, fileIndex) => (
-                  <Group 
-                    key={fileIndex}
-                    style={{
-                      padding: "10px",
-                      borderBottom: "1px solid #eee",
-                      alignItems: "center"
-                    }}
-                  >
-                    {getFileIcon(file)}
-                    <Text style={{ flex: 1 }}>{file}</Text>
-                    <Button
-                      variant="light"
-                      color="orange"
-                      onClick={() => handleFileOpen(file)}
-                    >
-                      Watch
-                    </Button>
-                  </Group>
+                  renderFileItem(file, fileIndex)
                 ))}
               </Accordion.Panel>
             </Accordion.Item>

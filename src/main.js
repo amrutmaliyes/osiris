@@ -551,6 +551,137 @@ ipcMain.handle("update-organization-details", async (event, data) => {
   }
 });
 
+// Add these new handlers
+ipcMain.handle("add-content-item", async (event, data) => {
+  try {
+    // First check if the content item already exists
+    const checkStmt = db.prepare(`
+      SELECT id FROM ContentItems 
+      WHERE folder_id = ? AND title = ?
+    `);
+    
+    let existingItem = checkStmt.get(data.folderId, data.title);
+    
+    if (existingItem) {
+      return { success: true, id: existingItem.id };
+    }
+
+    // If it doesn't exist, insert it
+    const insertStmt = db.prepare(`
+      INSERT INTO ContentItems (
+        folder_id, 
+        title, 
+        description
+      ) VALUES (?, ?, ?)
+    `);
+    
+    const result = insertStmt.run(
+      data.folderId,
+      data.title,
+      data.description
+    );
+    
+    return { success: true, id: result.lastInsertRowid };
+  } catch (error) {
+    console.error("Error adding content item:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("update-content-progress", async (event, data) => {
+  try {
+    // First check if progress already exists
+    const checkStmt = db.prepare(`
+      SELECT id FROM ContentProgress 
+      WHERE user_id = ? AND content_item_id = ?
+    `);
+    
+    const existingProgress = checkStmt.get(data.userId, data.contentItemId);
+    
+    let stmt;
+    if (existingProgress) {
+      // Update existing progress
+      stmt = db.prepare(`
+        UPDATE ContentProgress 
+        SET completion_percentage = ?,
+            status = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND content_item_id = ?
+      `);
+      
+      stmt.run(
+        data.completionPercentage,
+        data.status,
+        data.userId,
+        data.contentItemId
+      );
+    } else {
+      // Insert new progress
+      stmt = db.prepare(`
+        INSERT INTO ContentProgress (
+          user_id,
+          folder_id,
+          content_item_id,
+          completion_percentage,
+          status
+        ) VALUES (?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run(
+        data.userId,
+        data.folderId,
+        data.contentItemId,
+        data.completionPercentage,
+        data.status
+      );
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating content progress:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("get-content-progress", async (event, userId) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        cp.*,
+        ci.title,
+        ci.description
+      FROM ContentProgress cp
+      JOIN ContentItems ci ON cp.content_item_id = ci.id
+      WHERE cp.user_id = ?
+      ORDER BY cp.updated_at DESC
+    `);
+    
+    const progress = stmt.all(userId);
+    return { success: true, progress };
+  } catch (error) {
+    console.error("Error getting content progress:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Debug helper to check tables
+ipcMain.handle("debug-tables", async () => {
+  try {
+    const contentPaths = db.prepare("SELECT * FROM ContentPaths").all();
+    const contentItems = db.prepare("SELECT * FROM ContentItems").all();
+    const contentProgress = db.prepare("SELECT * FROM ContentProgress").all();
+    
+    console.log('ContentPaths:', contentPaths);
+    console.log('ContentItems:', contentItems);
+    console.log('ContentProgress:', contentProgress);
+    
+    return { contentPaths, contentItems, contentProgress };
+  } catch (error) {
+    console.error("Debug tables error:", error);
+    return { error: error.message };
+  }
+});
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
