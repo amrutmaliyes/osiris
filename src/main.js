@@ -649,11 +649,11 @@ ipcMain.handle("get-content-progress", async (event, userId) => {
       SELECT 
         cp.*,
         ci.title,
-        ci.description
+        ci.description,
+        cp.completion_percentage
       FROM ContentProgress cp
       JOIN ContentItems ci ON cp.content_item_id = ci.id
       WHERE cp.user_id = ?
-      ORDER BY cp.updated_at DESC
     `);
     
     const progress = stmt.all(userId);
