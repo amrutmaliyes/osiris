@@ -82,6 +82,10 @@ const Home = () => {
     </div>
   );
 
+  const handleSubjectChange = (newSubject) => {
+    setSelectedSubject(newSubject);
+  };
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", paddingTop: "50px" }}>
       {userType === "admin" ? (
@@ -265,6 +269,7 @@ const Home = () => {
             subject={selectedSubject}
             classNumber={selectedClass}
             contentPath={activeContent.path}
+            onSubjectChange={handleSubjectChange}
           />
         )}
       </div>

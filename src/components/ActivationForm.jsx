@@ -12,6 +12,8 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import banner from "../assets/lactive1.png";
+import { IconEyeCheck, IconEyeOff } from '@tabler/icons-react';
+
 const ActivationForm = ({ onActivationSuccess }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -23,6 +25,8 @@ const ActivationForm = ({ onActivationSuccess }) => {
     rePassword: "",
     productKey: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = () => {
     const errors = [];
@@ -264,11 +268,16 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 <Grid.Col span={6}>
                   <TextInput
                     placeholder="Password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={handleChange("password")}
                     required
                     size="md"
+                    rightSection={
+                      <div style={{ cursor: 'pointer' }} onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <IconEyeOff size={20} /> : <IconEyeCheck size={20} />}
+                      </div>
+                    }
                     styles={{
                       input: {
                         height: "50px",
@@ -284,11 +293,16 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 <Grid.Col span={6}>
                   <TextInput
                     placeholder="Re enter Password"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     value={formData.rePassword}
                     onChange={handleChange("rePassword")}
                     required
                     size="md"
+                    rightSection={
+                      <div style={{ cursor: 'pointer' }} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <IconEyeOff size={20} /> : <IconEyeCheck size={20} />}
+                      </div>
+                    }
                     styles={{
                       input: {
                         height: "50px",

@@ -3,7 +3,7 @@ import { Text, Paper, Accordion, Group, Button, Progress } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
 import useProgressStore from '../stores/progressStore';
 
-const SubjectContent = ({ subject, classNumber, contentPath }) => {
+const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) => {
   const [allSubjects, setAllSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(subject);
@@ -246,6 +246,11 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
     </Group>
   );
 
+  const handleSubjectSelect = (subj) => {
+    setSelectedSubject(subj);
+    onSubjectChange(subj);
+  };
+
   return (
     <div style={{ display: "flex", width: "100%" }}>
       {/* Sidebar */}
@@ -274,7 +279,7 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
         {allSubjects.map((subj, index) => (
           <Paper
             key={index}
-            onClick={() => setSelectedSubject(subj)}
+            onClick={() => handleSubjectSelect(subj)}
             style={{
               padding: "15px",
               marginBottom: "10px",
