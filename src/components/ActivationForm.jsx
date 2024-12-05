@@ -13,6 +13,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import banner from "../assets/lactive1.png";
 import { IconEyeCheck, IconEyeOff } from '@tabler/icons-react';
+import bg from "../assets/bg4.jpg";
 
 const ActivationForm = ({ onActivationSuccess }) => {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ const ActivationForm = ({ onActivationSuccess }) => {
         
         setTimeout(() => {
           navigate("/login");
-        }, 1500);
+        }, 1000);
       } else {
         notifications.show({
           title: "Error",
@@ -145,6 +146,19 @@ const ActivationForm = ({ onActivationSuccess }) => {
           justifyContent: "center",
         }}
       >
+         <img
+          src={bg}
+          alt="Background"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "-10px",
+            // width: "100%",
+            // height: "100%",
+            objectFit: "cover",
+            zIndex: -1,
+          }}
+        />
         <Container size={800} sx={{ margin: 0 }}>
           <Paper
             radius="md"

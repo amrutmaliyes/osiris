@@ -277,7 +277,7 @@ const Settings = () => {
               }}
             />
             <Button
-              color="blue"
+              color="orange"
               size="lg"
               onClick={handleBrowse}
               styles={{

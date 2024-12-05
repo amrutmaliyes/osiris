@@ -11,6 +11,7 @@ import {
   Box,
   Paper,
 } from "@mantine/core";
+import bg from "../assets/bg4.jpg";
 
 import { notifications } from "@mantine/notifications";
 
@@ -132,6 +133,19 @@ const ActivationDetails = () => {
           justifyContent: "center",
         }}
       >
+         <img
+          src={bg}
+          alt="Background"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "-10px",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            zIndex: -1,
+          }}
+        />
         <Container size={600} sx={{ margin: 0 }}>
           <Paper
             radius="md"

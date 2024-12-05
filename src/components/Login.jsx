@@ -73,7 +73,7 @@ const Login = () => {
   };
 
   return (
-    <div style={{ marginTop: "10%" }}>
+    <div style={{ marginTop: "7%" }}>
       <Box
         sx={{
           minHeight: "100vh",
