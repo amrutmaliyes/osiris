@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Text, Paper, Accordion, Group, Button, Progress } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
-import useProgressStore from '../stores/progressStore';
 
 const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) => {
   const [allSubjects, setAllSubjects] = useState([]);
@@ -11,12 +10,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [chapterContent, setChapterContent] = useState([]);
   const [userId, setUserId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
-  const { 
-    chapterProgress, 
-    contentProgress: storedContentProgress, 
-    setChapterProgress, 
-    setContentProgress 
-  } = useProgressStore();
+  const [contentProgress, setContentProgress] = useState({});
+  const [chapterProgress, setChapterProgress] = useState({});
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -58,6 +53,21 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   useEffect(() => {
     loadProgressFromDB();
   }, [userId]);
+
+  useEffect(() => {
+    if (selectedChapter && chapterContent.length > 0) {
+      const totalFiles = chapterContent.length;
+      const completedFiles = chapterContent.filter(
+        file => contentProgress[file]?.percentage === 100
+      ).length;
+      const progress = Math.round((completedFiles / totalFiles) * 100);
+      
+      setChapterProgress(prev => ({
+        ...prev,
+        [selectedChapter]: progress
+      }));
+    }
+  }, [contentProgress, selectedChapter, chapterContent]);
 
   const loadSubjects = async () => {
     try {
@@ -110,31 +120,34 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
             percentage: item.completion_percentage || 0,
             status: item.status || 'not-started'
           };
-          setContentProgress(item.title, {
-            percentage: item.completion_percentage || 0,
-            status: item.status || 'not-started'
-          });
         });
         setContentProgress(progressMap);
         
-        // Calculate chapter progress based on DB data
-        chapters.forEach(chapter => {
-          const chapterFiles = chapterContent;
-          const progress = calculateChapterProgress(chapterFiles);
-          setChapterProgress(chapter, progress);
-        });
+        // Calculate initial chapter progress
+        if (chapters.length > 0) {
+          const newChapterProgress = {};
+          chapters.forEach(chapter => {
+            const chapterFiles = chapterContent;
+            const totalFiles = chapterFiles.length;
+            const completedFiles = chapterFiles.filter(
+              file => progressMap[file]?.percentage === 100
+            ).length;
+            newChapterProgress[chapter] = Math.round((completedFiles / totalFiles) * 100);
+          });
+          setChapterProgress(newChapterProgress);
+        }
       }
     } catch (error) {
       console.error('Error loading progress from DB:', error);
     }
   };
 
-  const calculateChapterProgress = (files) => {
+  const calculateChapterProgress = (files, currentProgress = contentProgress) => {
     const totalFiles = files.length;
     if (totalFiles === 0) return 0;
 
     const completedFiles = files.filter(
-      file => storedContentProgress[file]?.percentage === 100
+      file => currentProgress[file]?.percentage === 100
     ).length;
 
     return Math.round((completedFiles / totalFiles) * 100);
@@ -148,9 +161,6 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       }
 
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
-      console.log('Opening file with:', { filePath, userId });
-
-      // Get the active content path ID
       const contentPaths = await window.electronAPI.getContentPaths();
       const activePath = contentPaths.find(path => path.is_active);
       
@@ -159,7 +169,6 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         return;
       }
 
-      // Get content item ID
       const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
       
       if (!contentItem?.success) {
@@ -167,20 +176,23 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         return;
       }
 
-      // Open the file
       const result = await window.electronAPI.openFile({
         filePath,
         userId: parseInt(userId)
       });
       
       if (result.success) {
-        // Update progress in local state
-        setContentProgress(fileName, { 
-          percentage: 100, 
-          status: 'completed' 
-        });
+        // Update file progress
+        const newContentProgress = {
+          ...contentProgress,
+          [fileName]: { 
+            percentage: 100, 
+            status: 'completed' 
+          }
+        };
+        setContentProgress(newContentProgress);
 
-        // Update progress in database
+        // Update database
         await window.electronAPI.updateContentProgress({
           userId: parseInt(userId),
           folderId: activePath.id,
@@ -189,9 +201,17 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           status: 'completed'
         });
 
-        // Recalculate chapter progress
-        const newProgress = calculateChapterProgress(chapterContent);
-        setChapterProgress(selectedChapter, newProgress);
+        // Calculate and update chapter progress immediately
+        const totalFiles = chapterContent.length;
+        const completedFiles = chapterContent.filter(
+          file => newContentProgress[file]?.percentage === 100
+        ).length;
+        const newProgress = Math.round((completedFiles / totalFiles) * 100);
+
+        setChapterProgress(prev => ({
+          ...prev,
+          [selectedChapter]: newProgress
+        }));
       }
     } catch (error) {
       console.error('Error handling file:', error);
@@ -250,15 +270,15 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       <Text style={{ flex: 1 }}>{file}</Text>
       <div style={{ width: "200px", marginRight: "15px" }}>
         <Progress 
-          value={storedContentProgress[file]?.percentage || 0}
+          value={contentProgress[file]?.percentage || 0}
           size="sm"
           radius="xl"
-          color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+          color={contentProgress[file]?.percentage === 100 ? "green" : "orange"}
           striped
           animate
         />
         <Text size="xs" color="dimmed" align="center" mt={5}>
-          {storedContentProgress[file]?.percentage || 0}% Completed
+          {contentProgress[file]?.percentage || 0}% Completed
         </Text>
       </div>
       <Button
@@ -368,7 +388,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
                       <Text size="xs" color="dimmed" align="center" mt={5}>
                         {chapterProgress[chapter] || 0}% Complete
                         {chapterContent.length > 0 && ` (${chapterContent.filter(
-                          file => storedContentProgress[file]?.percentage === 100
+                          file => contentProgress[file]?.percentage === 100
                         ).length}/${chapterContent.length} files)`}
                       </Text>
                     </div>
@@ -390,15 +410,15 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
                     <Text style={{ flex: 1 }}>{file}</Text>
                     <div style={{ width: "200px", marginRight: "15px" }}>
                       <Progress 
-                        value={storedContentProgress[file]?.percentage || 0}
+                        value={contentProgress[file]?.percentage || 0}
                         size="sm"
                         radius="xl"
-                        color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+                        color={contentProgress[file]?.percentage === 100 ? "green" : "orange"}
                         striped
                         animate
                       />
                       <Text size="xs" color="dimmed" align="center" mt={5}>
-                        {storedContentProgress[file]?.percentage || 0}% Completed
+                        {contentProgress[file]?.percentage || 0}% Completed
                       </Text>
                     </div>
                     <Button
