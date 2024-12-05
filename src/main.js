@@ -300,42 +300,96 @@ ipcMain.handle("readDirectory", async (event, dirPath) => {
   }
 });
 
-ipcMain.handle("openFile", async (event, filePath) => {
+ipcMain.handle("openFile", async (event, { filePath, userId }) => {
+  console.log('openFile called with:', { filePath, userId });
+  
   let decryptedPath = null;
   try {
+    // First verify the file exists
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      console.error('File does not exist:', filePath);
+      throw new Error('File not found');
+    }
+
     decryptedPath = await decryptFile(filePath);
+    console.log('File decrypted to:', decryptedPath);
     
-    // Check if file exists and has content
-    const stats = await fs.stat(decryptedPath);
-    if (stats.size === 0) {
-      throw new Error('Decrypted file is empty');
+    // Get the active content path
+    const activeContent = db.prepare('SELECT id FROM ContentPaths WHERE is_active = 1').get();
+    if (!activeContent) {
+      console.error('No active content path found');
+      throw new Error('No active content path');
+    }
+
+    // Get the content item
+    const contentItem = db.prepare(
+      'SELECT id FROM ContentItems WHERE folder_id = ? AND title = ?'
+    ).get(activeContent.id, path.basename(filePath));
+    
+    if (!contentItem) {
+      console.error('Content item not found:', path.basename(filePath));
+      throw new Error('Content item not found');
+    }
+
+    console.log('Found content item:', contentItem);
+
+    // Check for existing progress
+    const existingProgress = db.prepare(`
+      SELECT id FROM ContentProgress 
+      WHERE user_id = ? AND content_item_id = ?
+    `).get(userId, contentItem.id);
+
+    if (existingProgress) {
+      console.log('Updating existing progress');
+      db.prepare(`
+        UPDATE ContentProgress 
+        SET completion_percentage = 100,
+            status = 'completed',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND content_item_id = ?
+      `).run(userId, contentItem.id);
+    } else {
+      console.log('Creating new progress record');
+      db.prepare(`
+        INSERT INTO ContentProgress (
+          user_id,
+          folder_id,
+          content_item_id,
+          completion_percentage,
+          status
+        ) VALUES (?, ?, ?, 100, 'completed')
+      `).run(userId, activeContent.id, contentItem.id);
     }
 
     // Open file with default application
+    console.log('Opening file:', decryptedPath);
     const result = await shell.openPath(decryptedPath);
     if (result !== '') {
+      console.error('Failed to open file:', result);
       throw new Error(`Failed to open file: ${result}`);
     }
 
-    // Cleanup after a longer delay to ensure file opens
+    // Cleanup after delay
     setTimeout(async () => {
       try {
         await fs.unlink(decryptedPath);
       } catch (error) {
         console.error('Error cleaning up temp file:', error);
       }
-    }, 10000); // 10 seconds delay
+    }, 10000);
 
     return { success: true, filePath: decryptedPath };
   } catch (error) {
+    console.error('Error in openFile:', error);
     if (decryptedPath) {
       try {
         await fs.unlink(decryptedPath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
+      } catch (unlinkError) {
+        console.error('Error cleaning up after failure:', unlinkError);
       }
     }
-    console.error('Error handling file:', error);
     return { success: false, error: error.message };
   }
 });
@@ -400,7 +454,14 @@ ipcMain.handle("login-user", async (event, username, password) => {
     console.log("Found user:", user);
     
     if (user) {
-      return { success: true, user };
+      return { 
+        success: true, 
+        user: {
+          id: user.id,        // Make sure id is included
+          username: user.username,
+          role: user.role
+        } 
+      };
     } else {
       return { success: false, error: "Invalid credentials" };
     }
@@ -580,6 +641,26 @@ ipcMain.handle("add-content-item", async (event, data) => {
       data.title,
       data.description
     );
+
+    // Initialize progress records for all users
+    const users = db.prepare('SELECT id FROM Users').all();
+    const progressStmt = db.prepare(`
+      INSERT INTO ContentProgress (
+        user_id,
+        folder_id,
+        content_item_id,
+        completion_percentage,
+        status
+      ) VALUES (?, ?, ?, 0, 'not-started')
+    `);
+
+    for (const user of users) {
+      progressStmt.run(
+        user.id,
+        data.folderId,
+        result.lastInsertRowid
+      );
+    }
     
     return { success: true, id: result.lastInsertRowid };
   } catch (error) {
@@ -679,6 +760,28 @@ ipcMain.handle("debug-tables", async () => {
   } catch (error) {
     console.error("Debug tables error:", error);
     return { error: error.message };
+  }
+});
+
+// Add this new handler to get content item by folder ID and title
+ipcMain.handle("getContentItem", async (event, folderId, title) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id 
+      FROM ContentItems 
+      WHERE folder_id = ? AND title = ?
+    `);
+    
+    const contentItem = stmt.get(folderId, title);
+    
+    if (contentItem) {
+      return { success: true, id: contentItem.id };
+    } else {
+      return { success: false, error: "Content item not found" };
+    }
+  } catch (error) {
+    console.error("Error getting content item:", error);
+    return { success: false, error: error.message };
   }
 });
 

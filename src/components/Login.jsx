@@ -41,6 +41,7 @@ const Login = () => {
       if (loginResult.success) {
         localStorage.setItem("userType", loginResult.user.role);
         localStorage.setItem("userEmail", email);
+        localStorage.setItem("userId", loginResult.user.id);
         
         notifications.show({
           title: "Success",

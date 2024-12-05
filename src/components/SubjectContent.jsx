@@ -9,7 +9,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [chapterContent, setChapterContent] = useState([]);
-  const userId = localStorage.getItem("userId");
+  const [userId, setUserId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
   const { 
     chapterProgress, 
@@ -17,6 +17,14 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
     setChapterProgress, 
     setContentProgress 
   } = useProgressStore();
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem("userId");
+    console.log('Stored userId:', storedUserId);
+    if (storedUserId) {
+      setUserId(parseInt(storedUserId));
+    }
+  }, []);
 
   useEffect(() => {
     loadSubjects();
@@ -134,38 +142,56 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
   const handleFileOpen = async (fileName) => {
     try {
-      if (!activeContent) return;
+      if (!userId) {
+        console.error('No user ID available');
+        return;
+      }
 
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
-      const result = await window.electronAPI.openFile(filePath);
+      console.log('Opening file with:', { filePath, userId });
+
+      // Get the active content path ID
+      const contentPaths = await window.electronAPI.getContentPaths();
+      const activePath = contentPaths.find(path => path.is_active);
+      
+      if (!activePath) {
+        console.error('No active content path found');
+        return;
+      }
+
+      // Get content item ID
+      const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
+      
+      if (!contentItem?.success) {
+        console.error('Content item not found');
+        return;
+      }
+
+      // Open the file
+      const result = await window.electronAPI.openFile({
+        filePath,
+        userId: parseInt(userId)
+      });
       
       if (result.success) {
-        const contentItemResult = await window.electronAPI.addContentItem({
-          folderId: activeContent.id,
-          title: fileName,
-          description: `Class ${classNumber} - ${selectedSubject} - ${selectedChapter}`
+        // Update progress in local state
+        setContentProgress(fileName, { 
+          percentage: 100, 
+          status: 'completed' 
         });
 
-        if (contentItemResult.success) {
-          // Update DB
-          await window.electronAPI.updateContentProgress({
-            userId: parseInt(userId),
-            folderId: activeContent.id,
-            contentItemId: contentItemResult.id,
-            completionPercentage: 100,
-            status: 'completed'
-          });
+        // Update progress in database
+        await window.electronAPI.updateContentProgress({
+          userId: parseInt(userId),
+          folderId: activePath.id,
+          contentItemId: contentItem.id,
+          completionPercentage: 100,
+          status: 'completed'
+        });
 
-          // Update Zustand store
-          setContentProgress(fileName, { 
-            percentage: 100, 
-            status: 'completed' 
-          });
-
-          // Recalculate chapter progress
-          const newProgress = calculateChapterProgress(chapterContent);
-          setChapterProgress(selectedChapter, newProgress);
-        }
+        // Recalculate chapter progress
+        const newProgress = calculateChapterProgress(chapterContent);
+        setChapterProgress(selectedChapter, newProgress);
       }
     } catch (error) {
       console.error('Error handling file:', error);

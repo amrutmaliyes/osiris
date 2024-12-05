@@ -40,10 +40,53 @@ const Settings = () => {
   const handleUpload = async () => {
     if (!folderPath) return;
     
-    const result = await window.electronAPI.addContentPath(folderPath);
-    if (result.success) {
+    try {
+      // First add the content path
+      const pathResult = await window.electronAPI.addContentPath(folderPath);
+      if (!pathResult.success) return;
+
+      // Scan and add all content items
+      await scanAndAddContent(folderPath, pathResult.id);
+      
       setFolderPath("");
       loadContentPaths();
+    } catch (error) {
+      console.error('Error uploading content:', error);
+    }
+  };
+
+  const scanAndAddContent = async (basePath, folderId) => {
+    try {
+      // Read all class directories
+      const classes = await window.electronAPI.readDirectory(basePath);
+      
+      for (const classDir of classes) {
+        if (!classDir.toLowerCase().startsWith('class')) continue;
+        
+        const classPath = `${basePath}/${classDir}`;
+        const subjects = await window.electronAPI.readDirectory(classPath);
+        
+        for (const subject of subjects) {
+          const subjectPath = `${classPath}/${subject}`;
+          const chapters = await window.electronAPI.readDirectory(subjectPath);
+          
+          for (const chapter of chapters) {
+            const chapterPath = `${subjectPath}/${chapter}`;
+            const files = await window.electronAPI.readDirectory(chapterPath);
+            
+            // Add each file as a content item
+            for (const file of files) {
+              await window.electronAPI.addContentItem({
+                folderId,
+                title: file,
+                description: `${classDir} - ${subject} - ${chapter}`
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error scanning content:', error);
     }
   };
 

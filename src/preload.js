@@ -30,4 +30,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addContentItem: (data) => ipcRenderer.invoke("add-content-item", data),
   updateContentProgress: (data) => ipcRenderer.invoke("update-content-progress", data),
   getContentProgress: (userId) => ipcRenderer.invoke("get-content-progress", userId),
+  getContentItem: (folderId, title) => ipcRenderer.invoke('getContentItem', folderId, title),
 });
