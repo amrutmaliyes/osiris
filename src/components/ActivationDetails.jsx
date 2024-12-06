@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-
 import { useNavigate } from "react-router-dom";
-
 import {
   TextInput,
   Button,
@@ -10,103 +8,75 @@ import {
   Image,
   Box,
   Paper,
+  LoadingOverlay,
 } from "@mantine/core";
-import bg from "../assets/bg4.jpg";
-
 import { notifications } from "@mantine/notifications";
-
 import banner from "../assets/lactive1.png";
+import bg from "../assets/bg4.jpg";
 
 const ActivationDetails = () => {
   const navigate = useNavigate();
-
   const [activationCode, setActivationCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
     const errors = [];
-
     if (!activationCode.trim()) {
       errors.push("Activation Code is required");
     } else if (activationCode.length < 6) {
       errors.push("Activation Code must be at least 6 characters");
     }
-
     return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const errors = validateForm();
 
     if (errors.length > 0) {
       notifications.show({
         title: "Validation Error",
-
         message: errors.join("\n"),
-
         color: "red",
-
         autoClose: 5000,
       });
-
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      // Get system info
-
       const systemInfo = await window.electronAPI.getSystemInfo();
-
-      // Prepare activation data
-
-      const activationData = {
+      
+      const result = await window.electronAPI.reactivateProduct({
         activation_key: activationCode,
-
         serial_number: systemInfo.os,
-
-        version: "1.0",
-      };
-
-      // Call activation API through IPC
-
-      const result = await window.electronAPI.activateProduct(activationData);
+        version: "1.0"
+      });
 
       if (result.success) {
         notifications.show({
           title: "Success",
-
-          message: "Activation successful!",
-
+          message: "Reactivation successful!",
           color: "green",
-
           autoClose: 3000,
         });
-
+        
+        await window.electronAPI.checkActivation();
+        
         setTimeout(() => {
-          navigate("/login");
-        }, 1000);
+          navigate("/login", { replace: true });
+        }, 2000);
       } else {
-        notifications.show({
-          title: "Error",
-
-          message: result.error,
-
-          color: "red",
-
-          autoClose: 5000,
-        });
+        throw new Error(result.error?.message || "Reactivation failed");
       }
     } catch (error) {
       notifications.show({
         title: "Error",
-
         message: error.message,
-
         color: "red",
-
         autoClose: 5000,
       });
+      setIsSubmitting(false);
     }
   };
 
@@ -157,8 +127,22 @@ const ActivationDetails = () => {
               border: "1px solid #e0e0e0",
 
               boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
+              position: "relative",
             }}
           >
+            <LoadingOverlay 
+              visible={isSubmitting} 
+              overlayProps={{ 
+                backgroundOpacity: 0.5,  
+                color: "#fff"  
+              }}
+              loaderProps={{ 
+                size: 'xl', 
+                color: '#E78728' 
+              }}
+              overlayBlur={2}
+            />
+
             <Box
               sx={{
                 display: "flex",
@@ -190,7 +174,7 @@ const ActivationDetails = () => {
                 fontWeight: 600,
               }}
             >
-              Activation Details
+              {isSubmitting ? "Processing..." : "Activation Details"}
             </Title>
 
             <form onSubmit={handleSubmit}>
@@ -199,6 +183,7 @@ const ActivationDetails = () => {
                 size="lg"
                 mb={30}
                 required
+                disabled={isSubmitting}
                 value={activationCode}
                 onChange={(e) => setActivationCode(e.target.value)}
                 styles={{
@@ -222,13 +207,15 @@ const ActivationDetails = () => {
                 color="#E78728"
                 mb={15}
                 type="submit"
+                loading={isSubmitting}
+                disabled={isSubmitting}
                 sx={{
                   height: "50px",
 
                   fontSize: "1.1rem",
                 }}
               >
-                Activate
+                {isSubmitting ? "Activating..." : "Activate"}
               </Button>
 
               <Button
@@ -236,6 +223,7 @@ const ActivationDetails = () => {
                 fullWidth
                 onClick={() => navigate("/")}
                 color="gray"
+                disabled={isSubmitting}
               >
                 Back
               </Button>

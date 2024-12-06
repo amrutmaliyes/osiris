@@ -40,6 +40,7 @@ const initDb = () => {
       activation_code TEXT NOT NULL UNIQUE,
       start_date DATETIME,
       end_date DATETIME,
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -118,10 +119,8 @@ ipcMain.handle("activate-product", async (event, activationData) => {
       `${API_BASE_URL}/product-keys/activation`,
       activationData
     );
-console.log(response.data,"responsesssssssssssss")
-    // Only insert into database if activation is successful
+
     if (response.data.activationStatus === "Active") {
-      // Extract dates from the main DB response
       const { activation_date, expiry_date } = response.data;
 
       const insertActivationStmt = db.prepare(`
@@ -134,13 +133,17 @@ console.log(response.data,"responsesssssssssssss")
           activation_code,
           start_date,
           end_date,
+          is_active,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `);
 
       const insertUserStmt = db.prepare(`
         INSERT INTO Users (
-          username, password, role, mobile
+          username, 
+          password, 
+          role, 
+          mobile
         ) VALUES (?, ?, ?, ?)
       `);
 
@@ -154,7 +157,8 @@ console.log(response.data,"responsesssssssssssss")
           activationData.serial_number,
           activationData.activation_key,
           activation_date,
-          expiry_date
+          expiry_date,
+          1  // is_active value
         );
 
         insertUserStmt.run(
@@ -166,24 +170,65 @@ console.log(response.data,"responsesssssssssssss")
       });
 
       transaction();
-
       return { success: true, data: response.data };
     }
 
     return {
       success: false,
-      error: "Activation failed: Invalid or expired activation key"
+      error: {
+        message: response.data.message || "Activation failed: Invalid or expired activation key"
+      }
     };
   } catch (error) {
     console.error("Activation error:", error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: {
+        message: error.response?.data?.message || error.message || "Activation failed"
+      }
+    };
   }
 });
 
-ipcMain.handle("check-activation", () => {
-  const stmt = db.prepare("SELECT * FROM Activations LIMIT 1");
-  const activation = stmt.get();
-  return !!activation;
+ipcMain.handle("check-activation", async () => {
+  try {
+    const activation = db.prepare(`
+      SELECT * FROM Activations 
+      WHERE is_active = 1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `).get();
+
+    console.log("Found activation:", activation); // Debug log
+
+    if (!activation) return false;
+
+    // Parse dates properly and handle timezone
+    const endDate = new Date(activation.end_date);
+    const now = new Date();
+
+    console.log("Activation check:", {
+      endDate: endDate.toISOString(),
+      now: now.toISOString(),
+      isValid: now <= endDate
+    });
+
+    if (now > endDate) {
+      console.log("Activation expired, deactivating...");
+      db.prepare(`
+        UPDATE Activations 
+        SET is_active = 0 
+        WHERE id = ?
+      `).run(activation.id);
+      
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Activation check error:", error);
+    return false;
+  }
 });
 
 ipcMain.handle("get-activation-credentials", () => {
@@ -782,6 +827,161 @@ ipcMain.handle("getContentItem", async (event, folderId, title) => {
   } catch (error) {
     console.error("Error getting content item:", error);
     return { success: false, error: error.message };
+  }
+});
+
+// Add new IPC handlers for reactivation
+ipcMain.handle("reactivate-product", async (event, activationData) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/product-keys/reactivation`,
+      {
+        product_key: activationData.activation_key,
+        serial_number: activationData.serial_number,
+        version: activationData.version
+      }
+    );
+
+    if (response.data.data.activationStatus === "Active") {
+      // First check if there's an existing activation
+      const checkStmt = db.prepare("SELECT COUNT(*) as count FROM Activations");
+      const { count } = checkStmt.get();
+
+      const endDate = new Date(response.data.data.expiryDate);
+      const formattedEndDate = endDate.toISOString().replace('T', ' ').replace('Z', '');
+
+      if (count === 0) {
+        // No existing activation - Insert new record
+        const insertStmt = db.prepare(`
+          INSERT INTO Activations (
+            email,
+            organization_name,
+            head_of_institution,
+            mobile_no,
+            serial_mac_id,
+            activation_code,
+            start_date,
+            end_date,
+            is_active,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, 1, datetime('now'))
+        `);
+
+        // Get existing user details for reactivation
+        const userStmt = db.prepare("SELECT * FROM Users WHERE role = 'admin' LIMIT 1");
+        const existingUser = userStmt.get();
+
+        insertStmt.run(
+          existingUser?.username || '', // fallback email
+          '',  // placeholder
+          '', // placeholder
+          existingUser?.mobile || '', // fallback mobile
+          activationData.serial_number,
+          activationData.activation_key,
+          formattedEndDate
+        );
+      } else {
+        // Existing activation - Update record
+        const updateStmt = db.prepare(`
+          UPDATE Activations 
+          SET 
+            start_date = datetime('now'),
+            end_date = ?,
+            is_active = 1,
+            activation_code = ?,
+            serial_mac_id = ?,
+            updated_at = datetime('now')
+          WHERE id = (
+            SELECT id FROM Activations 
+            ORDER BY created_at DESC 
+            LIMIT 1
+          )
+        `);
+
+        updateStmt.run(
+          formattedEndDate,
+          activationData.activation_key,
+          activationData.serial_number
+        );
+      }
+
+      return { 
+        success: true, 
+        data: response.data.data 
+      };
+    }
+
+    return {
+      success: false,
+      error: {
+        message: response.data.message || "Reactivation failed"
+      }
+    };
+  } catch (error) {
+    console.error("Reactivation error:", error);
+    return { 
+      success: false, 
+      error: {
+        message: error.response?.data?.message || error.message || "Reactivation failed"
+      }
+    };
+  }
+});
+
+ipcMain.handle("update-activation", async (event, activationData) => {
+  try {
+    // Ensure the dates are valid ISO strings
+    const startDate = new Date(activationData.start_date);
+    const endDate = new Date(activationData.end_date);
+
+    if (isNaN(startDate) || isNaN(endDate)) {
+      throw new Error("Invalid date format");
+    }
+
+    // Format dates properly for SQLite
+    const formattedStartDate = startDate.toISOString().replace('T', ' ').replace('Z', '');
+    const formattedEndDate = endDate.toISOString().replace('T', ' ').replace('Z', '');
+
+    // Update the existing activation record
+    const updateStmt = db.prepare(`
+      UPDATE Activations 
+      SET 
+        activation_code = ?,
+        serial_mac_id = ?,
+        start_date = ?,
+        end_date = ?,
+        is_active = 1,
+        updated_at = datetime('now')
+      WHERE id = (
+        SELECT id FROM Activations 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      )
+    `);
+
+    console.log("Updating activation with data:", {
+      activation_code: activationData.activation_key,
+      serial_mac_id: activationData.serial_number,
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
+    });
+
+    updateStmt.run(
+      activationData.activation_key,
+      activationData.serial_number,
+      formattedStartDate,
+      formattedEndDate
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update activation error:", error);
+    return { 
+      success: false, 
+      error: {
+        message: error.message || "Failed to update activation"
+      }
+    };
   }
 });
 
