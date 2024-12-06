@@ -32,5 +32,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getContentProgress: (userId) => ipcRenderer.invoke("get-content-progress", userId),
   getContentItem: (folderId, title) => ipcRenderer.invoke('getContentItem', folderId, title),
   reactivateProduct: (data) => ipcRenderer.invoke("reactivate-product", data),
-  // updateActivation: (data) => ipcRenderer.invoke("update-activation", data)
+  // updateActivation: (data) => ipcRenderer.invoke("update-activation", data),
+  debugTables: () => ipcRenderer.invoke('debug-tables'),
 });

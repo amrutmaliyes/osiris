@@ -12,6 +12,7 @@ import {
   Anchor,
   Divider,
 } from "@mantine/core";
+import { notifications } from '@mantine/notifications';
 
 const Settings = () => {
   // State for content list
@@ -38,20 +39,49 @@ const Settings = () => {
   };
 
   const handleUpload = async () => {
-    if (!folderPath) return;
+    if (!folderPath) {
+      notifications.show({
+        title: "Error",
+        message: "Please select a folder path first",
+        color: "red",
+        autoClose: 3000,
+      });
+      return;
+    }
     
     try {
       // First add the content path
       const pathResult = await window.electronAPI.addContentPath(folderPath);
-      if (!pathResult.success) return;
+      if (!pathResult.success) {
+        notifications.show({
+          title: "Error",
+          message: "Failed to add content path",
+          color: "red",
+          autoClose: 3000,
+        });
+        return;
+      }
 
       // Scan and add all content items
       await scanAndAddContent(folderPath, pathResult.id);
+      
+      notifications.show({
+        title: "Success",
+        message: "Content folder uploaded successfully!",
+        color: "green",
+        autoClose: 3000,
+      });
       
       setFolderPath("");
       loadContentPaths();
     } catch (error) {
       console.error('Error uploading content:', error);
+      notifications.show({
+        title: "Error",
+        message: error.message || "Failed to upload content",
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
@@ -92,29 +122,104 @@ const Settings = () => {
 
   const handleActivate = async () => {
     const selectedContent = contentList.find(item => item.contentPath === selectedMenu);
-    if (!selectedContent) return;
+    if (!selectedContent) {
+      notifications.show({
+        title: "Error",
+        message: "Please select a content path first",
+        color: "red",
+        autoClose: 3000,
+      });
+      return;
+    }
 
-    const result = await window.electronAPI.setActiveContent(selectedContent.id);
-    if (result.success) {
-      loadContentPaths();
+    try {
+      const result = await window.electronAPI.setActiveContent(selectedContent.id);
+      if (result.success) {
+        notifications.show({
+          title: "Success",
+          message: "Content activated successfully!",
+          color: "green",
+          autoClose: 3000,
+        });
+        loadContentPaths();
+      } else {
+        throw new Error("Failed to activate content");
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: error.message || "Failed to activate content",
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
   const handleDelete = async () => {
     const selectedContent = contentList.find(item => item.contentPath === selectedMenu);
-    if (!selectedContent) return;
+    if (!selectedContent) {
+      notifications.show({
+        title: "Error",
+        message: "Please select a content path first",
+        color: "red",
+        autoClose: 3000,
+      });
+      return;
+    }
 
-    const result = await window.electronAPI.deleteContentPath(selectedContent.id);
-    if (result.success) {
-      setSelectedMenu("");
-      loadContentPaths();
+    // Add confirmation dialog
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this content? This will remove all related progress data and cannot be undone."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.deleteContentPath(selectedContent.id);
+      
+      if (result.success) {
+        notifications.show({
+          title: "Success",
+          message: "Content and related data deleted successfully!",
+          color: "green",
+          autoClose: 3000,
+        });
+        setSelectedMenu("");
+        loadContentPaths();
+      } else {
+        throw new Error(result.error || "Failed to delete content");
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: error.message || "Failed to delete content",
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
   const handleBrowse = async () => {
-    const selectedPath = await window.electronAPI.selectFolder();
-    if (selectedPath) {
-      setFolderPath(selectedPath);
+    try {
+      const selectedPath = await window.electronAPI.selectFolder();
+      if (selectedPath) {
+        setFolderPath(selectedPath);
+        notifications.show({
+          title: "Success",
+          message: "Folder selected successfully!",
+          color: "green",
+          autoClose: 2000,
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: "Failed to select folder",
+        color: "red",
+        autoClose: 3000,
+      });
     }
   };
 
@@ -277,7 +382,7 @@ const Settings = () => {
               }}
             />
             <Button
-              color="orange"
+              color="gray"
               size="lg"
               onClick={handleBrowse}
               styles={{

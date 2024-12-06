@@ -315,11 +315,34 @@ ipcMain.handle("set-active-content", async (event, contentId) => {
 
 ipcMain.handle("delete-content-path", async (event, contentId) => {
   try {
-    const stmt = db.prepare('DELETE FROM ContentPaths WHERE id = ?');
-    stmt.run(contentId);
-    return { success: true };
+    // Start a transaction to ensure all deletions succeed or fail together
+    const transaction = db.transaction(() => {
+      // First delete all progress records related to this content
+      db.prepare(`
+        DELETE FROM ContentProgress 
+        WHERE folder_id = ? OR 
+        content_item_id IN (SELECT id FROM ContentItems WHERE folder_id = ?)
+      `).run(contentId, contentId);
+
+      // Then delete all content items
+      db.prepare('DELETE FROM ContentItems WHERE folder_id = ?').run(contentId);
+
+      // Finally delete the content path
+      db.prepare('DELETE FROM ContentPaths WHERE id = ?').run(contentId);
+    });
+
+    transaction();
+
+    return { 
+      success: true, 
+      message: "Content and related data deleted successfully" 
+    };
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error("Delete content error:", error);
+    return { 
+      success: false, 
+      error: error.message || "Failed to delete content" 
+    };
   }
 });
 
