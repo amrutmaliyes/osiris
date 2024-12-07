@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { Text, Paper, Accordion, Group, Button, Progress } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
-import useProgressStore from '../stores/progressStore';
 
-const SubjectContent = ({ subject, classNumber, contentPath }) => {
+const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) => {
   const [allSubjects, setAllSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [chapterContent, setChapterContent] = useState([]);
-  const userId = localStorage.getItem("userId");
+  const [userId, setUserId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
-  const { 
-    chapterProgress, 
-    contentProgress: storedContentProgress, 
-    setChapterProgress, 
-    setContentProgress 
-  } = useProgressStore();
+  const [contentProgress, setContentProgress] = useState({});
+  const [chapterProgress, setChapterProgress] = useState({});
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem("userId");
+    console.log('Stored userId:', storedUserId);
+    if (storedUserId) {
+      setUserId(parseInt(storedUserId));
+    }
+  }, []);
 
   useEffect(() => {
     loadSubjects();
@@ -48,8 +51,31 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
   }, []);
 
   useEffect(() => {
-    loadProgressFromDB();
-  }, [userId]);
+    if (userId && activeContent) {
+      loadProgressFromDB();
+    }
+  }, [userId, activeContent]);
+
+  useEffect(() => {
+    if (selectedChapter && chapterContent.length > 0) {
+      const totalFiles = chapterContent.length;
+      const completedFiles = chapterContent.filter(
+        file => contentProgress[file]?.percentage === 100
+      ).length;
+      const progress = Math.round((completedFiles / totalFiles) * 100);
+      
+      setChapterProgress(prev => ({
+        ...prev,
+        [selectedChapter]: progress
+      }));
+    }
+  }, [contentProgress, selectedChapter, chapterContent]);
+
+  useEffect(() => {
+    if (chapters.length > 0) {
+      calculateAllChaptersProgress(chapters);
+    }
+  }, [contentProgress, chapters]);
 
   const loadSubjects = async () => {
     try {
@@ -68,6 +94,8 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       setChapters(chapterFiles);
       setSelectedChapter(null);
       setChapterContent([]);
+
+      await calculateAllChaptersProgress(chapterFiles);
     } catch (error) {
       console.error('Error loading chapters:', error);
     }
@@ -79,12 +107,8 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       const files = await window.electronAPI.readDirectory(chapterPath);
       setChapterContent(files);
       
-      // Calculate initial progress for this chapter
-      const progress = calculateChapterProgress(files);
-      setChapterProgress(prev => ({
-        ...prev,
-        [selectedChapter]: progress
-      }));
+      // Load progress after setting chapter content
+      await loadProgressFromDB();
     } catch (error) {
       console.error('Error loading chapter content:', error);
     }
@@ -102,70 +126,113 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
             percentage: item.completion_percentage || 0,
             status: item.status || 'not-started'
           };
-          setContentProgress(item.title, {
-            percentage: item.completion_percentage || 0,
-            status: item.status || 'not-started'
-          });
         });
         setContentProgress(progressMap);
         
-        // Calculate chapter progress based on DB data
-        chapters.forEach(chapter => {
-          const chapterFiles = chapterContent;
-          const progress = calculateChapterProgress(chapterFiles);
-          setChapterProgress(chapter, progress);
-        });
+        // Calculate chapter progress after loading progress data
+        if (selectedChapter && chapterContent.length > 0) {
+          const totalFiles = chapterContent.length;
+          const completedFiles = chapterContent.filter(
+            file => progressMap[file]?.percentage === 100
+          ).length;
+          const progress = Math.round((completedFiles / totalFiles) * 100);
+          
+          setChapterProgress(prev => ({
+            ...prev,
+            [selectedChapter]: progress
+          }));
+        }
       }
     } catch (error) {
       console.error('Error loading progress from DB:', error);
     }
   };
 
-  const calculateChapterProgress = (files) => {
-    const totalFiles = files.length;
-    if (totalFiles === 0) return 0;
+  const calculateChapterProgress = async (chapter) => {
+    try {
+      const chapterPath = `${contentPath}/class${classNumber}/${selectedSubject}/${chapter}`;
+      const files = await window.electronAPI.readDirectory(chapterPath);
+      
+      if (files.length === 0) return 0;
 
-    const completedFiles = files.filter(
-      file => storedContentProgress[file]?.percentage === 100
-    ).length;
+      const completedFiles = files.filter(
+        file => contentProgress[file]?.percentage === 100
+      ).length;
+      
+      return Math.round((completedFiles / files.length) * 100);
+    } catch (error) {
+      console.error(`Error calculating progress for ${chapter}:`, error);
+      return 0;
+    }
+  };
 
-    return Math.round((completedFiles / totalFiles) * 100);
+  const calculateAllChaptersProgress = async (chapterList) => {
+    const progress = {};
+    for (const chapter of chapterList) {
+      progress[chapter] = await calculateChapterProgress(chapter);
+    }
+    setChapterProgress(progress);
   };
 
   const handleFileOpen = async (fileName) => {
     try {
-      if (!activeContent) return;
+      if (!userId) {
+        console.error('No user ID available');
+        return;
+      }
 
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
-      const result = await window.electronAPI.openFile(filePath);
+      const contentPaths = await window.electronAPI.getContentPaths();
+      const activePath = contentPaths.find(path => path.is_active);
+      
+      if (!activePath) {
+        console.error('No active content path found');
+        return;
+      }
+
+      const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
+      
+      if (!contentItem?.success) {
+        console.error('Content item not found');
+        return;
+      }
+
+      const result = await window.electronAPI.openFile({
+        filePath,
+        userId: parseInt(userId)
+      });
       
       if (result.success) {
-        const contentItemResult = await window.electronAPI.addContentItem({
-          folderId: activeContent.id,
-          title: fileName,
-          description: `Class ${classNumber} - ${selectedSubject} - ${selectedChapter}`
-        });
-
-        if (contentItemResult.success) {
-          // Update DB
-          await window.electronAPI.updateContentProgress({
-            userId: parseInt(userId),
-            folderId: activeContent.id,
-            contentItemId: contentItemResult.id,
-            completionPercentage: 100,
-            status: 'completed'
-          });
-
-          // Update Zustand store
-          setContentProgress(fileName, { 
+        // Update file progress
+        const newContentProgress = {
+          ...contentProgress,
+          [fileName]: { 
             percentage: 100, 
             status: 'completed' 
-          });
+          }
+        };
+        setContentProgress(newContentProgress);
 
-          // Recalculate chapter progress
-          const newProgress = calculateChapterProgress(chapterContent);
-          setChapterProgress(selectedChapter, newProgress);
-        }
+        // Update database
+        await window.electronAPI.updateContentProgress({
+          userId: parseInt(userId),
+          folderId: activePath.id,
+          contentItemId: contentItem.id,
+          completionPercentage: 100,
+          status: 'completed'
+        });
+
+        // Calculate and update chapter progress immediately
+        const totalFiles = chapterContent.length;
+        const completedFiles = chapterContent.filter(
+          file => newContentProgress[file]?.percentage === 100
+        ).length;
+        const newProgress = Math.round((completedFiles / totalFiles) * 100);
+
+        setChapterProgress(prev => ({
+          ...prev,
+          [selectedChapter]: newProgress
+        }));
       }
     } catch (error) {
       console.error('Error handling file:', error);
@@ -224,15 +291,15 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       <Text style={{ flex: 1 }}>{file}</Text>
       <div style={{ width: "200px", marginRight: "15px" }}>
         <Progress 
-          value={storedContentProgress[file]?.percentage || 0}
+          value={contentProgress[file]?.percentage || 0}
           size="sm"
           radius="xl"
-          color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+          color={contentProgress[file]?.percentage === 100 ? "green" : "orange"}
           striped
           animate
         />
         <Text size="xs" color="dimmed" align="center" mt={5}>
-          {storedContentProgress[file]?.percentage || 0}% Completed
+          {contentProgress[file]?.percentage || 0}% Completed
         </Text>
       </div>
       <Button
@@ -245,6 +312,11 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
       </Button>
     </Group>
   );
+
+  const handleSubjectSelect = (subj) => {
+    setSelectedSubject(subj);
+    onSubjectChange(subj);
+  };
 
   return (
     <div style={{ display: "flex", width: "100%" }}>
@@ -274,7 +346,7 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
         {allSubjects.map((subj, index) => (
           <Paper
             key={index}
-            onClick={() => setSelectedSubject(subj)}
+            onClick={() => handleSubjectSelect(subj)}
             style={{
               padding: "15px",
               marginBottom: "10px",
@@ -336,9 +408,9 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
                       />
                       <Text size="xs" color="dimmed" align="center" mt={5}>
                         {chapterProgress[chapter] || 0}% Complete
-                        {chapterContent.length > 0 && ` (${chapterContent.filter(
-                          file => storedContentProgress[file]?.percentage === 100
-                        ).length}/${chapterContent.length} files)`}
+                        {/* {chapterContent.length > 0 && ` (${chapterContent.filter(
+                          file => contentProgress[file]?.percentage === 100
+                        ).length}/${chapterContent.length} files)`} */}
                       </Text>
                     </div>
                   </Group>
@@ -359,15 +431,15 @@ const SubjectContent = ({ subject, classNumber, contentPath }) => {
                     <Text style={{ flex: 1 }}>{file}</Text>
                     <div style={{ width: "200px", marginRight: "15px" }}>
                       <Progress 
-                        value={storedContentProgress[file]?.percentage || 0}
+                        value={contentProgress[file]?.percentage || 0}
                         size="sm"
                         radius="xl"
-                        color={storedContentProgress[file]?.percentage === 100 ? "green" : "orange"}
+                        color={contentProgress[file]?.percentage === 100 ? "green" : "orange"}
                         striped
                         animate
                       />
                       <Text size="xs" color="dimmed" align="center" mt={5}>
-                        {storedContentProgress[file]?.percentage || 0}% Completed
+                        {contentProgress[file]?.percentage || 0}% Completed
                       </Text>
                     </div>
                     <Button

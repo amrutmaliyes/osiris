@@ -41,6 +41,7 @@ const Login = () => {
       if (loginResult.success) {
         localStorage.setItem("userType", loginResult.user.role);
         localStorage.setItem("userEmail", email);
+        localStorage.setItem("userId", loginResult.user.id);
         
         notifications.show({
           title: "Success",
@@ -72,7 +73,7 @@ const Login = () => {
   };
 
   return (
-    <div style={{ marginTop: "10%" }}>
+    <div style={{ marginTop: "7%" }}>
       <Box
         sx={{
           minHeight: "100vh",

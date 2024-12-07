@@ -9,10 +9,15 @@ import {
   Image,
   Grid,
   Box,
+  LoadingOverlay,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import banner from "../assets/lactive1.png";
+import { IconEyeCheck, IconEyeOff } from '@tabler/icons-react';
+import bg from "../assets/bg4.jpg";
+
 const ActivationForm = ({ onActivationSuccess }) => {
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     institutionName: "",
@@ -23,6 +28,8 @@ const ActivationForm = ({ onActivationSuccess }) => {
     rePassword: "",
     productKey: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = () => {
     const errors = [];
@@ -71,6 +78,7 @@ const ActivationForm = ({ onActivationSuccess }) => {
       return;
     }
 
+    setIsLoading(true);
     try {
       const systemInfo = await window.electronAPI.getSystemInfo();
       const activationData = {
@@ -81,9 +89,7 @@ const ActivationForm = ({ onActivationSuccess }) => {
         password: formData.password,
         institutionName: formData.institutionName,
         headOfInstitution: formData.headOfInstitution,
-        mobileNo:formData.mobileNo
-        
-
+        mobileNo: formData.mobileNo
       };
 
       const result = await window.electronAPI.activateProduct(activationData);
@@ -103,11 +109,11 @@ const ActivationForm = ({ onActivationSuccess }) => {
         
         setTimeout(() => {
           navigate("/login");
-        }, 1500);
+        }, 1000);
       } else {
         notifications.show({
-          title: "Error",
-          message: result.error || "Activation failed. Please try again.",
+          title: "Activation Failed",
+          message: result.error?.message || result.error || "Activation failed. Please try again.",
           color: "red",
           autoClose: 5000,
         });
@@ -115,10 +121,12 @@ const ActivationForm = ({ onActivationSuccess }) => {
     } catch (error) {
       notifications.show({
         title: "Error",
-        message: error.message,
+        message: error.message || "An unexpected error occurred",
         color: "red",
         autoClose: 5000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,6 +149,19 @@ const ActivationForm = ({ onActivationSuccess }) => {
           justifyContent: "center",
         }}
       >
+         <img
+          src={bg}
+          alt="Background"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "-10px",
+            // width: "100%",
+            // height: "100%",
+            objectFit: "cover",
+            zIndex: -1,
+          }}
+        />
         <Container size={800} sx={{ margin: 0 }}>
           <Paper
             radius="md"
@@ -150,8 +171,21 @@ const ActivationForm = ({ onActivationSuccess }) => {
               backgroundColor: "rgba(255, 255, 255, 0.95)",
               border: "1px solid #e0e0e0",
               boxShadow: "0 2px 20px rgba(0, 0, 0, 0.1)",
+              position: "relative",
             }}
           >
+            <LoadingOverlay 
+              visible={isLoading} 
+              overlayBlur={2}
+              overlayProps={{ 
+                backgroundOpacity: 0.5,  
+                color: "#fff" 
+              }}
+              loaderProps={{ 
+                size: 'xl', 
+                color: '#E78728' 
+              }}
+            />
             <Box
               sx={{
                 display: "flex",
@@ -264,11 +298,16 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 <Grid.Col span={6}>
                   <TextInput
                     placeholder="Password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={handleChange("password")}
                     required
                     size="md"
+                    rightSection={
+                      <div style={{ cursor: 'pointer' }} onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <IconEyeOff size={20} /> : <IconEyeCheck size={20} />}
+                      </div>
+                    }
                     styles={{
                       input: {
                         height: "50px",
@@ -284,11 +323,16 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 <Grid.Col span={6}>
                   <TextInput
                     placeholder="Re enter Password"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     value={formData.rePassword}
                     onChange={handleChange("rePassword")}
                     required
                     size="md"
+                    rightSection={
+                      <div style={{ cursor: 'pointer' }} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <IconEyeOff size={20} /> : <IconEyeCheck size={20} />}
+                      </div>
+                    }
                     styles={{
                       input: {
                         height: "50px",
@@ -328,12 +372,13 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 mt={30}
                 mb={15}
                 type="submit"
+                loading={isLoading}
                 sx={{
                   height: "50px",
                   fontSize: "1.1rem",
                 }}
               >
-                Activate
+                {isLoading ? "Activating..." : "Activate"}
               </Button>
 
               <Button
@@ -341,6 +386,7 @@ const ActivationForm = ({ onActivationSuccess }) => {
                 fullWidth
                 onClick={() => navigate("/")}
                 color="gray"
+                disabled={isLoading}
               >
                 Back
               </Button>

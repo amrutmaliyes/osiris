@@ -40,6 +40,7 @@ const initDb = () => {
       activation_code TEXT NOT NULL UNIQUE,
       start_date DATETIME,
       end_date DATETIME,
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -118,10 +119,8 @@ ipcMain.handle("activate-product", async (event, activationData) => {
       `${API_BASE_URL}/product-keys/activation`,
       activationData
     );
-console.log(response.data,"responsesssssssssssss")
-    // Only insert into database if activation is successful
+
     if (response.data.activationStatus === "Active") {
-      // Extract dates from the main DB response
       const { activation_date, expiry_date } = response.data;
 
       const insertActivationStmt = db.prepare(`
@@ -134,13 +133,17 @@ console.log(response.data,"responsesssssssssssss")
           activation_code,
           start_date,
           end_date,
+          is_active,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `);
 
       const insertUserStmt = db.prepare(`
         INSERT INTO Users (
-          username, password, role, mobile
+          username, 
+          password, 
+          role, 
+          mobile
         ) VALUES (?, ?, ?, ?)
       `);
 
@@ -154,7 +157,8 @@ console.log(response.data,"responsesssssssssssss")
           activationData.serial_number,
           activationData.activation_key,
           activation_date,
-          expiry_date
+          expiry_date,
+          1  // is_active value
         );
 
         insertUserStmt.run(
@@ -166,24 +170,65 @@ console.log(response.data,"responsesssssssssssss")
       });
 
       transaction();
-
       return { success: true, data: response.data };
     }
 
     return {
       success: false,
-      error: "Activation failed: Invalid or expired activation key"
+      error: {
+        message: response.data.message || "Activation failed: Invalid or expired activation key"
+      }
     };
   } catch (error) {
     console.error("Activation error:", error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: {
+        message: error.response?.data?.message || error.message || "Activation failed"
+      }
+    };
   }
 });
 
-ipcMain.handle("check-activation", () => {
-  const stmt = db.prepare("SELECT * FROM Activations LIMIT 1");
-  const activation = stmt.get();
-  return !!activation;
+ipcMain.handle("check-activation", async () => {
+  try {
+    const activation = db.prepare(`
+      SELECT * FROM Activations 
+      WHERE is_active = 1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `).get();
+
+    console.log("Found activation:", activation); // Debug log
+
+    if (!activation) return false;
+
+    // Parse dates properly and handle timezone
+    const endDate = new Date(activation.end_date);
+    const now = new Date();
+
+    console.log("Activation check:", {
+      endDate: endDate.toISOString(),
+      now: now.toISOString(),
+      isValid: now <= endDate
+    });
+
+    if (now > endDate) {
+      console.log("Activation expired, deactivating...");
+      db.prepare(`
+        UPDATE Activations 
+        SET is_active = 0 
+        WHERE id = ?
+      `).run(activation.id);
+      
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Activation check error:", error);
+    return false;
+  }
 });
 
 ipcMain.handle("get-activation-credentials", () => {
@@ -270,11 +315,34 @@ ipcMain.handle("set-active-content", async (event, contentId) => {
 
 ipcMain.handle("delete-content-path", async (event, contentId) => {
   try {
-    const stmt = db.prepare('DELETE FROM ContentPaths WHERE id = ?');
-    stmt.run(contentId);
-    return { success: true };
+    // Start a transaction to ensure all deletions succeed or fail together
+    const transaction = db.transaction(() => {
+      // First delete all progress records related to this content
+      db.prepare(`
+        DELETE FROM ContentProgress 
+        WHERE folder_id = ? OR 
+        content_item_id IN (SELECT id FROM ContentItems WHERE folder_id = ?)
+      `).run(contentId, contentId);
+
+      // Then delete all content items
+      db.prepare('DELETE FROM ContentItems WHERE folder_id = ?').run(contentId);
+
+      // Finally delete the content path
+      db.prepare('DELETE FROM ContentPaths WHERE id = ?').run(contentId);
+    });
+
+    transaction();
+
+    return { 
+      success: true, 
+      message: "Content and related data deleted successfully" 
+    };
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error("Delete content error:", error);
+    return { 
+      success: false, 
+      error: error.message || "Failed to delete content" 
+    };
   }
 });
 
@@ -300,42 +368,96 @@ ipcMain.handle("readDirectory", async (event, dirPath) => {
   }
 });
 
-ipcMain.handle("openFile", async (event, filePath) => {
+ipcMain.handle("openFile", async (event, { filePath, userId }) => {
+  console.log('openFile called with:', { filePath, userId });
+  
   let decryptedPath = null;
   try {
+    // First verify the file exists
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      console.error('File does not exist:', filePath);
+      throw new Error('File not found');
+    }
+
     decryptedPath = await decryptFile(filePath);
+    console.log('File decrypted to:', decryptedPath);
     
-    // Check if file exists and has content
-    const stats = await fs.stat(decryptedPath);
-    if (stats.size === 0) {
-      throw new Error('Decrypted file is empty');
+    // Get the active content path
+    const activeContent = db.prepare('SELECT id FROM ContentPaths WHERE is_active = 1').get();
+    if (!activeContent) {
+      console.error('No active content path found');
+      throw new Error('No active content path');
+    }
+
+    // Get the content item
+    const contentItem = db.prepare(
+      'SELECT id FROM ContentItems WHERE folder_id = ? AND title = ?'
+    ).get(activeContent.id, path.basename(filePath));
+    
+    if (!contentItem) {
+      console.error('Content item not found:', path.basename(filePath));
+      throw new Error('Content item not found');
+    }
+
+    console.log('Found content item:', contentItem);
+
+    // Check for existing progress
+    const existingProgress = db.prepare(`
+      SELECT id FROM ContentProgress 
+      WHERE user_id = ? AND content_item_id = ?
+    `).get(userId, contentItem.id);
+
+    if (existingProgress) {
+      console.log('Updating existing progress');
+      db.prepare(`
+        UPDATE ContentProgress 
+        SET completion_percentage = 100,
+            status = 'completed',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND content_item_id = ?
+      `).run(userId, contentItem.id);
+    } else {
+      console.log('Creating new progress record');
+      db.prepare(`
+        INSERT INTO ContentProgress (
+          user_id,
+          folder_id,
+          content_item_id,
+          completion_percentage,
+          status
+        ) VALUES (?, ?, ?, 100, 'completed')
+      `).run(userId, activeContent.id, contentItem.id);
     }
 
     // Open file with default application
+    console.log('Opening file:', decryptedPath);
     const result = await shell.openPath(decryptedPath);
     if (result !== '') {
+      console.error('Failed to open file:', result);
       throw new Error(`Failed to open file: ${result}`);
     }
 
-    // Cleanup after a longer delay to ensure file opens
+    // Cleanup after delay
     setTimeout(async () => {
       try {
         await fs.unlink(decryptedPath);
       } catch (error) {
         console.error('Error cleaning up temp file:', error);
       }
-    }, 10000); // 10 seconds delay
+    }, 10000);
 
     return { success: true, filePath: decryptedPath };
   } catch (error) {
+    console.error('Error in openFile:', error);
     if (decryptedPath) {
       try {
         await fs.unlink(decryptedPath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
+      } catch (unlinkError) {
+        console.error('Error cleaning up after failure:', unlinkError);
       }
     }
-    console.error('Error handling file:', error);
     return { success: false, error: error.message };
   }
 });
@@ -400,7 +522,14 @@ ipcMain.handle("login-user", async (event, username, password) => {
     console.log("Found user:", user);
     
     if (user) {
-      return { success: true, user };
+      return { 
+        success: true, 
+        user: {
+          id: user.id,        // Make sure id is included
+          username: user.username,
+          role: user.role
+        } 
+      };
     } else {
       return { success: false, error: "Invalid credentials" };
     }
@@ -580,6 +709,26 @@ ipcMain.handle("add-content-item", async (event, data) => {
       data.title,
       data.description
     );
+
+    // Initialize progress records for all users
+    const users = db.prepare('SELECT id FROM Users').all();
+    const progressStmt = db.prepare(`
+      INSERT INTO ContentProgress (
+        user_id,
+        folder_id,
+        content_item_id,
+        completion_percentage,
+        status
+      ) VALUES (?, ?, ?, 0, 'not-started')
+    `);
+
+    for (const user of users) {
+      progressStmt.run(
+        user.id,
+        data.folderId,
+        result.lastInsertRowid
+      );
+    }
     
     return { success: true, id: result.lastInsertRowid };
   } catch (error) {
@@ -679,6 +828,183 @@ ipcMain.handle("debug-tables", async () => {
   } catch (error) {
     console.error("Debug tables error:", error);
     return { error: error.message };
+  }
+});
+
+// Add this new handler to get content item by folder ID and title
+ipcMain.handle("getContentItem", async (event, folderId, title) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT id 
+      FROM ContentItems 
+      WHERE folder_id = ? AND title = ?
+    `);
+    
+    const contentItem = stmt.get(folderId, title);
+    
+    if (contentItem) {
+      return { success: true, id: contentItem.id };
+    } else {
+      return { success: false, error: "Content item not found" };
+    }
+  } catch (error) {
+    console.error("Error getting content item:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Add new IPC handlers for reactivation
+ipcMain.handle("reactivate-product", async (event, activationData) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/product-keys/reactivation`,
+      {
+        product_key: activationData.activation_key,
+        serial_number: activationData.serial_number,
+        version: activationData.version
+      }
+    );
+
+    if (response.data.data.activationStatus === "Active") {
+      // First check if there's an existing activation
+      const checkStmt = db.prepare("SELECT COUNT(*) as count FROM Activations");
+      const { count } = checkStmt.get();
+
+      const endDate = new Date(response.data.data.expiryDate);
+      const formattedEndDate = endDate.toISOString().replace('T', ' ').replace('Z', '');
+
+      if (count === 0) {
+        // No existing activation - Insert new record
+        const insertStmt = db.prepare(`
+          INSERT INTO Activations (
+            email,
+            organization_name,
+            head_of_institution,
+            mobile_no,
+            serial_mac_id,
+            activation_code,
+            start_date,
+            end_date,
+            is_active,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, 1, datetime('now'))
+        `);
+
+        // Get existing user details for reactivation
+        const userStmt = db.prepare("SELECT * FROM Users WHERE role = 'admin' LIMIT 1");
+        const existingUser = userStmt.get();
+
+        insertStmt.run(
+          existingUser?.username || '', // fallback email
+          '',  // placeholder
+          '', // placeholder
+          existingUser?.mobile || '', // fallback mobile
+          activationData.serial_number,
+          activationData.activation_key,
+          formattedEndDate
+        );
+      } else {
+        // Existing activation - Update record
+        const updateStmt = db.prepare(`
+          UPDATE Activations 
+          SET 
+            start_date = datetime('now'),
+            end_date = ?,
+            is_active = 1,
+            activation_code = ?,
+            serial_mac_id = ?,
+            updated_at = datetime('now')
+          WHERE id = (
+            SELECT id FROM Activations 
+            ORDER BY created_at DESC 
+            LIMIT 1
+          )
+        `);
+
+        updateStmt.run(
+          formattedEndDate,
+          activationData.activation_key,
+          activationData.serial_number
+        );
+      }
+
+      return { 
+        success: true, 
+        data: response.data.data 
+      };
+    }
+
+    return {
+      success: false,
+      error: {
+        message: response.data.message || "Reactivation failed"
+      }
+    };
+  } catch (error) {
+    console.error("Reactivation error:", error);
+    return { 
+      success: false, 
+      error: {
+        message: error.response?.data?.message || error.message || "Reactivation failed"
+      }
+    };
+  }
+});
+
+ipcMain.handle("update-activation", async (event, activationData) => {
+  try {
+    // Ensure the dates are valid ISO strings
+    const startDate = new Date(activationData.start_date);
+    const endDate = new Date(activationData.end_date);
+
+    if (isNaN(startDate) || isNaN(endDate)) {
+      throw new Error("Invalid date format");
+    }
+
+    // Format dates properly for SQLite
+    const formattedStartDate = startDate.toISOString().replace('T', ' ').replace('Z', '');
+    const formattedEndDate = endDate.toISOString().replace('T', ' ').replace('Z', '');
+
+    // Update the existing activation record
+    const updateStmt = db.prepare(`
+      UPDATE Activations 
+      SET 
+        activation_code = ?,
+        serial_mac_id = ?,
+        start_date = ?,
+        end_date = ?,
+        is_active = 1,
+        updated_at = datetime('now')
+      WHERE id = (
+        SELECT id FROM Activations 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      )
+    `);
+
+    console.log("Updating activation with data:", {
+      activation_code: activationData.activation_key,
+      serial_mac_id: activationData.serial_number,
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
+    });
+
+    updateStmt.run(
+      activationData.activation_key,
+      activationData.serial_number,
+      formattedStartDate,
+      formattedEndDate
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update activation error:", error);
+    return { 
+      success: false, 
+      error: {
+        message: error.message || "Failed to update activation"
+      }
+    };
   }
 });
 

@@ -10,6 +10,7 @@ import {
   Box,
 } from "@mantine/core";
 import banner from "../assets/lactive1.png";
+import bg from "../assets/bg4.jpg";
 
 const ProductActivation = () => {
   const navigate = useNavigate();
@@ -28,7 +29,19 @@ const ProductActivation = () => {
           alignItems: "center",
           justifyContent: "center",
         }}
-      >
+      > <img
+      src={bg}
+      alt="Background"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: "-10px",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        zIndex: -1,
+      }}
+    />
         <Container size={600} sx={{ margin: 0 }}>
           <Paper
             radius="md"
