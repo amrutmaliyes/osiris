@@ -16,6 +16,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [chapterProgress, setChapterProgress] = useState({});
   const [mediaFile, setMediaFile] = useState(null);
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -395,16 +396,19 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       alignItems: 'center',
       backgroundColor: '#000',
       position: 'relative',
-      overflow: 'hidden'
     };
 
     const mediaStyle = {
       width: '100%',
       height: '100%',
+      maxHeight: '80vh',
       objectFit: 'contain',
       backgroundColor: '#000',
-      display: 'block',
     };
+
+    // Add state for video loading
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     return (
       <Modal
@@ -426,14 +430,22 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           body: {
             padding: '0',
             height: '80vh',
-          },
-          inner: {
-            padding: '0'
           }
         }}
       >
         <div style={containerStyle}>
+          {isLoading && (
+            <div style={{ position: 'absolute', color: 'white', zIndex: 1000 }}>
+              {isConverting ? 'Converting video format...' : 'Loading video...'}
+            </div>
+          )}
+          {error && (
+            <div style={{ position: 'absolute', color: 'red', zIndex: 1000 }}>
+              Error: {error}
+            </div>
+          )}
           <MediaTag
+            key={mediaFile.path}
             controls
             autoPlay
             playsInline
@@ -443,33 +455,51 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
               setMediaFile(null);
             }}
             controlsList="nodownload"
-            preload="metadata"
-            onError={(e) => {
-              console.error('Media error:', e.target.error);
-              const mediaElement = e.target;
-              console.log('Media element state:', {
-                readyState: mediaElement.readyState,
-                networkState: mediaElement.networkState,
-                error: mediaElement.error,
-                currentSrc: mediaElement.currentSrc
+            preload="auto"
+            onLoadStart={() => {
+              console.log('Loading started');
+              setIsLoading(true);
+              setError(null);
+              // Check if video is being converted
+              if (mediaFile.info?.converted) {
+                setIsConverting(true);
+              }
+            }}
+            onLoadedData={() => {
+              console.log('Video loaded');
+              setIsLoading(false);
+              setIsConverting(false);
+            }}
+            onLoadedMetadata={(e) => {
+              const video = e.target;
+              console.log('Metadata loaded:', {
+                duration: video.duration,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight,
+                readyState: video.readyState,
+                networkState: video.networkState,
+                paused: video.paused,
+                currentSrc: video.currentSrc,
+                error: video.error
               });
             }}
-            onLoadedData={(e) => {
-              console.log('Media loaded successfully');
-              const videoElement = e.target;
-              console.log('Video details:', {
-                videoWidth: videoElement.videoWidth,
-                videoHeight: videoElement.videoHeight,
-                duration: videoElement.duration,
-                currentSrc: videoElement.currentSrc
+            onError={(e) => {
+              const video = e.target;
+              setIsLoading(false);
+              setError(video.error ? video.error.message : 'Unknown error');
+              console.error('Video error:', {
+                error: video.error,
+                networkState: video.networkState,
+                readyState: video.readyState,
+                currentSrc: video.currentSrc
               });
             }}
           >
             <source 
               src={mediaFile.path} 
-              type={`${isVideo ? 'video' : 'audio'}/${mediaFile.type}`} 
+              type="video/mp4; codecs=avc1.42E01E,mp4a.40.2"
             />
-            Your browser does not support the {isVideo ? 'video' : 'audio'} tag.
+            Your browser does not support the video tag.
           </MediaTag>
         </div>
       </Modal>
