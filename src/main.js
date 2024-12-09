@@ -1,5 +1,5 @@
 const SQLite = require("better-sqlite3");
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require("electron");
 const si = require("systeminformation");
 const axios = require("axios");
 const path = require("path");
@@ -79,16 +79,49 @@ const initDb = () => {
 };
 
 const createWindow = () => {
+  // Enable hardware acceleration before creating window
+  app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode');
+  app.commandLine.appendSwitch('enable-accelerated-video');
+  app.commandLine.appendSwitch('ignore-gpu-blacklist');
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+  app.commandLine.appendSwitch('enable-zero-copy');
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      webSecurity: true,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
+    backgroundColor: '#000000',
+    show: false,
+  });
+
+  // Update CSP headers to be more permissive for media
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' 'unsafe-inline' data:;" +
+          "media-src 'self' mediaserver: blob: data: file:;" + // Added file: protocol
+          "img-src 'self' data: file:;" +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+        ]
+      }
+    });
   });
 
   initDb();
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
   // Check if app is activated
   const checkActivation = db.prepare("SELECT * FROM Activations LIMIT 1");
   const activation = checkActivation.get();
@@ -1008,7 +1041,55 @@ ipcMain.handle("update-activation", async (event, activationData) => {
   }
 });
 
-app.whenReady().then(createWindow);
+// Add this new IPC handler
+ipcMain.handle("getDecryptedFilePath", async (event, { filePath, userId }) => {
+  try {
+    await fs.access(filePath);
+    const decryptedPath = await decryptFile(filePath);
+    await fs.chmod(decryptedPath, 0o444);
+    
+    return { 
+      success: true, 
+      filePath: `mediaserver://${decryptedPath}` // Return with protocol
+    };
+  } catch (error) {
+    console.error('Error getting decrypted file path:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+});
+
+app.whenReady().then(() => {
+  // Register custom protocol
+  protocol.registerFileProtocol('mediaserver', (request, callback) => {
+    try {
+      const filePath = decodeURIComponent(request.url.replace('mediaserver://', ''));
+      const ext = path.extname(filePath).toLowerCase();
+      
+      // Set the correct MIME type based on file extension
+      let mimeType = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"'; // Specify codecs for MP4
+      if (ext === '.webm') mimeType = 'video/webm; codecs="vp8, vorbis"';
+      else if (ext === '.mp3') mimeType = 'audio/mpeg';
+      else if (ext === '.ogg') mimeType = 'audio/ogg';
+
+      callback({
+        path: filePath,
+        headers: {
+          'Content-Type': mimeType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+          'X-Content-Type-Options': 'nosniff'
+        }
+      });
+    } catch (error) {
+      console.error('Protocol error:', error);
+    }
+  });
+
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

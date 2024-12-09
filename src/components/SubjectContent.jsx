@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Text, Paper, Accordion, Group, Button, Progress } from "@mantine/core";
+import { Text, Paper, Accordion, Group, Button, Progress, Modal } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+
 
 const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) => {
   const [allSubjects, setAllSubjects] = useState([]);
@@ -12,6 +14,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [activeContent, setActiveContent] = useState(null);
   const [contentProgress, setContentProgress] = useState({});
   const [chapterProgress, setChapterProgress] = useState({});
+  const [mediaFile, setMediaFile] = useState(null);
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -178,64 +182,123 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
     try {
       if (!userId) {
         console.error('No user ID available');
+        notifications.show({
+          title: 'Error',
+          message: 'User ID not available',
+          color: 'red'
+        });
         return;
       }
 
       const filePath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}/${fileName}`;
-      const contentPaths = await window.electronAPI.getContentPaths();
-      const activePath = contentPaths.find(path => path.is_active);
+      const extension = fileName.split('.').pop().toLowerCase();
       
-      if (!activePath) {
-        console.error('No active content path found');
-        return;
-      }
-
-      const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
-      
-      if (!contentItem?.success) {
-        console.error('Content item not found');
-        return;
-      }
-
-      const result = await window.electronAPI.openFile({
-        filePath,
-        userId: parseInt(userId)
-      });
-      
-      if (result.success) {
-        // Update file progress
-        const newContentProgress = {
-          ...contentProgress,
-          [fileName]: { 
-            percentage: 100, 
-            status: 'completed' 
-          }
-        };
-        setContentProgress(newContentProgress);
-
-        // Update database
-        await window.electronAPI.updateContentProgress({
-          userId: parseInt(userId),
-          folderId: activePath.id,
-          contentItemId: contentItem.id,
-          completionPercentage: 100,
-          status: 'completed'
+      if (['mp3', 'mp4', 'webm', 'ogg'].includes(extension)) {
+        console.log('Opening media file:', filePath);
+        console.log('File extension:', extension);
+        
+        const result = await window.electronAPI.getDecryptedFilePath({
+          filePath,
+          userId: parseInt(userId)
         });
+        
+        console.log('Decrypted file result:', result);
+        
+        if (result.success) {
+          // Add file verification
+          try {
+            const videoElement = document.createElement('video');
+            videoElement.src = result.filePath;
+            await new Promise((resolve, reject) => {
+              videoElement.onloadedmetadata = () => {
+                console.log('Video metadata loaded:', {
+                  duration: videoElement.duration,
+                  width: videoElement.videoWidth,
+                  height: videoElement.videoHeight
+                });
+                resolve();
+              };
+              videoElement.onerror = () => reject(new Error('Failed to load video metadata'));
+              setTimeout(() => reject(new Error('Video load timeout')), 5000);
+            });
+          } catch (error) {
+            console.error('Video verification failed:', error);
+            notifications.show({
+              title: 'Error',
+              message: 'Video file appears to be corrupted',
+              color: 'red'
+            });
+            return;
+          }
 
-        // Calculate and update chapter progress immediately
-        const totalFiles = chapterContent.length;
-        const completedFiles = chapterContent.filter(
-          file => newContentProgress[file]?.percentage === 100
-        ).length;
-        const newProgress = Math.round((completedFiles / totalFiles) * 100);
-
-        setChapterProgress(prev => ({
-          ...prev,
-          [selectedChapter]: newProgress
-        }));
+          setMediaFile({
+            path: result.filePath,
+            type: extension,
+            name: fileName
+          });
+          setIsMediaModalOpen(true);
+          updateProgress(fileName);
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: result.error || 'Failed to open media file',
+            color: 'red'
+          });
+        }
+      } else {
+        const result = await window.electronAPI.openFile({
+          filePath,
+          userId: parseInt(userId)
+        });
+        
+        if (result.success) {
+          updateProgress(fileName);
+        }
       }
     } catch (error) {
-      console.error('Error handling file:', error);
+      console.error('Error in handleFileOpen:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to open media file. Please try again.',
+        color: 'red'
+      });
+    }
+  };
+
+  const updateProgress = async (fileName) => {
+    const contentPaths = await window.electronAPI.getContentPaths();
+    const activePath = contentPaths.find(path => path.is_active);
+    const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
+
+    if (contentItem?.success) {
+      const newContentProgress = {
+        ...contentProgress,
+        [fileName]: { 
+          percentage: 100, 
+          status: 'completed' 
+        }
+      };
+      setContentProgress(newContentProgress);
+
+      await window.electronAPI.updateContentProgress({
+        userId: parseInt(userId),
+        folderId: activePath.id,
+        contentItemId: contentItem.id,
+        completionPercentage: 100,
+        status: 'completed'
+      });
+
+      // Update chapter progress
+      const totalFiles = chapterContent.length;
+      const completedFiles = chapterContent.filter(
+        file => newContentProgress[file]?.percentage === 100
+      ).length;
+      const newProgress = Math.round((completedFiles / totalFiles) * 100);
+
+      setChapterProgress(prev => ({
+        ...prev,
+        [selectedChapter]: newProgress
+      }));
     }
   };
 
@@ -316,6 +379,101 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const handleSubjectSelect = (subj) => {
     setSelectedSubject(subj);
     onSubjectChange(subj);
+  };
+
+  const MediaPlayer = () => {
+    if (!mediaFile) return null;
+
+    const isVideo = ['mp4', 'webm'].includes(mediaFile.type);
+    const MediaTag = isVideo ? 'video' : 'audio';
+
+    const containerStyle = {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#000',
+      position: 'relative',
+      overflow: 'hidden'
+    };
+
+    const mediaStyle = {
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      backgroundColor: '#000',
+      display: 'block',
+    };
+
+    return (
+      <Modal
+        opened={isMediaModalOpen}
+        onClose={() => {
+          setIsMediaModalOpen(false);
+          setMediaFile(null);
+        }}
+        size="90%"
+        title={mediaFile.name}
+        styles={{
+          modal: {
+            backgroundColor: '#1a1b1e',
+          },
+          header: {
+            marginBottom: '10px',
+            color: '#fff'
+          },
+          body: {
+            padding: '0',
+            height: '80vh',
+          },
+          inner: {
+            padding: '0'
+          }
+        }}
+      >
+        <div style={containerStyle}>
+          <MediaTag
+            controls
+            autoPlay
+            playsInline
+            style={mediaStyle}
+            onEnded={() => {
+              setIsMediaModalOpen(false);
+              setMediaFile(null);
+            }}
+            controlsList="nodownload"
+            preload="metadata"
+            onError={(e) => {
+              console.error('Media error:', e.target.error);
+              const mediaElement = e.target;
+              console.log('Media element state:', {
+                readyState: mediaElement.readyState,
+                networkState: mediaElement.networkState,
+                error: mediaElement.error,
+                currentSrc: mediaElement.currentSrc
+              });
+            }}
+            onLoadedData={(e) => {
+              console.log('Media loaded successfully');
+              const videoElement = e.target;
+              console.log('Video details:', {
+                videoWidth: videoElement.videoWidth,
+                videoHeight: videoElement.videoHeight,
+                duration: videoElement.duration,
+                currentSrc: videoElement.currentSrc
+              });
+            }}
+          >
+            <source 
+              src={mediaFile.path} 
+              type={`${isVideo ? 'video' : 'audio'}/${mediaFile.type}`} 
+            />
+            Your browser does not support the {isVideo ? 'video' : 'audio'} tag.
+          </MediaTag>
+        </div>
+      </Modal>
+    );
   };
 
   return (
@@ -457,6 +615,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           ))}
         </Accordion>
       </div>
+      
+      <MediaPlayer />
     </div>
   );
 };
