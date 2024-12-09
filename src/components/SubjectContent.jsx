@@ -439,7 +439,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
               {isConverting ? 'Converting video format...' : 'Loading video...'}
             </div>
           )}
-          {error && (
+          {error  
+          && (
             <div style={{ position: 'absolute', color: 'red', zIndex: 1000 }}>
               Error: {error}
             </div>
