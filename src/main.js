@@ -1,11 +1,14 @@
 const SQLite = require("better-sqlite3");
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require("electron");
 const si = require("systeminformation");
 const axios = require("axios");
 const path = require("path");
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const os = require('os');
+const { execFile } = require('child_process');
+const util = require('util');
+const execFilePromise = util.promisify(execFile);
 
 const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
 const db = new SQLite( "data.db");
@@ -68,7 +71,7 @@ const initDb = () => {
       user_id INTEGER,
       folder_id INTEGER,
       content_item_id INTEGER,
-      completion_percentage INTEGER DEFAULT 0,
+      completion_percentage FLOAT DEFAULT 0,
       status TEXT DEFAULT 'in-progress',
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES Users(id),
@@ -79,16 +82,58 @@ const initDb = () => {
 };
 
 const createWindow = () => {
+  // Enable hardware acceleration and video decoding
+  app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode');
+  app.commandLine.appendSwitch('enable-accelerated-video');
+  app.commandLine.appendSwitch('ignore-gpu-blacklist');
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+  app.commandLine.appendSwitch('enable-zero-copy');
+  app.commandLine.appendSwitch('enable-hardware-overlays', 'single-fullscreen');
+  app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      webSecurity: true,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
+    backgroundColor: '#000000',
+    show: false,
+  });
+
+  // Add this to check GPU info
+  mainWindow.webContents.session.on('ready', () => {
+    mainWindow.webContents.executeJavaScript(`
+      console.log('Chrome GPU Info:', chrome.gpuInfo);
+    `);
+  });
+
+  // Update CSP headers to be more permissive for media
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' 'unsafe-inline' data:;" +
+          "media-src 'self' mediaserver: blob: data: file:;" + // Added file: protocol
+          "img-src 'self' data: file:;" +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+        ]
+      }
+    });
   });
 
   initDb();
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
   // Check if app is activated
   const checkActivation = db.prepare("SELECT * FROM Activations LIMIT 1");
   const activation = checkActivation.get();
@@ -1008,7 +1053,101 @@ ipcMain.handle("update-activation", async (event, activationData) => {
   }
 });
 
-app.whenReady().then(createWindow);
+// Add this utility function to check video file
+async function checkVideoFile(filePath) {
+  try {
+    const { stdout } = await execFilePromise('ffprobe', [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=codec_name,width,height',
+      '-of', 'json',
+      filePath
+    ]);
+    return JSON.parse(stdout);
+  } catch (error) {
+    console.error('Error checking video file:', error);
+    return null;
+  }
+}
+
+// Update the getDecryptedFilePath handler
+ipcMain.handle("getDecryptedFilePath", async (event, { filePath, userId }) => {
+  try {
+    await fs.access(filePath);
+    const decryptedPath = await decryptFile(filePath);
+    await fs.chmod(decryptedPath, 0o444);
+    
+    // Check video file
+    const videoInfo = await checkVideoFile(decryptedPath);
+    console.log('Video file info:', videoInfo);
+
+    if (videoInfo && videoInfo.streams && videoInfo.streams[0]) {
+      const stream = videoInfo.streams[0];
+      console.log('Video codec:', stream.codec_name);
+      
+      // If not H.264, try to convert
+      if (stream.codec_name !== 'h264') {
+        const convertedPath = decryptedPath.replace('.mp4', '_converted.mp4');
+        await execFilePromise('ffmpeg', [
+          '-i', decryptedPath,
+          '-c:v', 'libx264',
+          '-c:a', 'aac',
+          '-movflags', '+faststart',
+          convertedPath
+        ]);
+        await fs.unlink(decryptedPath);
+        return { 
+          success: true, 
+          filePath: `mediaserver://${convertedPath}`,
+          info: videoInfo
+        };
+      }
+    }
+    
+    return { 
+      success: true, 
+      filePath: `mediaserver://${decryptedPath}`,
+      info: videoInfo
+    };
+  } catch (error) {
+    console.error('Error getting decrypted file path:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+});
+
+app.whenReady().then(() => {
+  // Register custom protocol
+  protocol.registerFileProtocol('mediaserver', (request, callback) => {
+    try {
+      const filePath = decodeURIComponent(request.url.replace('mediaserver://', ''));
+      const ext = path.extname(filePath).toLowerCase();
+      
+      // Simplified MIME types without codecs
+      let mimeType = 'video/mp4';
+      if (ext === '.webm') mimeType = 'video/webm';
+      else if (ext === '.mp3') mimeType = 'audio/mpeg';
+      else if (ext === '.ogg') mimeType = 'audio/ogg';
+
+      callback({
+        path: filePath,
+        headers: {
+          'Content-Type': mimeType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+          'Accept-Ranges': 'bytes',
+        }
+      });
+    } catch (error) {
+      console.error('Protocol error:', error);
+      callback({ error: -6 });
+    }
+  });
+
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -1041,13 +1180,22 @@ async function decryptFile(filePath) {
       decipher.final()
     ]);
 
-    // Preserve the original file extension
     const originalFileName = path.basename(filePath);
     const fileExtension = path.extname(originalFileName);
     const tempDir = os.tmpdir();
     const decryptedFilePath = path.join(tempDir, `dec_${Date.now()}${fileExtension}`);
 
+    // Write file with proper permissions
     await fs.writeFile(decryptedFilePath, decrypted);
+    await fs.chmod(decryptedFilePath, 0o444); // Read-only permissions
+
+    // Verify the decrypted file
+    const stats = await fs.stat(decryptedFilePath);
+    if (stats.size === 0) {
+      throw new Error('Decrypted file is empty');
+    }
+
+    console.log('Decrypted file size:', stats.size);
     return decryptedFilePath;
   } catch (error) {
     console.error('Decryption error:', error);
