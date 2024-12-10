@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Text, Paper, Accordion, Group, Button, Progress, Modal } from "@mantine/core";
 import { IconBook, IconVideo, IconFileText, IconHeadphones, IconFile } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -17,6 +17,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [mediaFile, setMediaFile] = useState(null);
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [activePath, setActivePath] = useState(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -63,24 +64,54 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
   useEffect(() => {
     if (selectedChapter && chapterContent.length > 0) {
-      const totalFiles = chapterContent.length;
-      const completedFiles = chapterContent.filter(
-        file => contentProgress[file]?.percentage === 100
-      ).length;
-      const progress = Math.round((completedFiles / totalFiles) * 100);
-      
-      setChapterProgress(prev => ({
-        ...prev,
-        [selectedChapter]: progress
-      }));
+      calculateChapterProgress(selectedChapter);
     }
   }, [contentProgress, selectedChapter, chapterContent]);
 
   useEffect(() => {
-    if (chapters.length > 0) {
-      calculateAllChaptersProgress(chapters);
-    }
-  }, [contentProgress, chapters]);
+    const getActivePath = async () => {
+      const contentPaths = await window.electronAPI.getContentPaths();
+      const active = contentPaths.find(path => path.is_active);
+      setActivePath(active);
+    };
+    getActivePath();
+  }, []);
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!userId || !activePath) return;
+
+      try {
+        const result = await window.electronAPI.getContentProgress(userId);
+        if (result.success) {
+          const progressMap = {};
+          result.progress.forEach(item => {
+            progressMap[item.title] = {
+              percentage: item.completion_percentage || 0,
+              status: item.status || 'not-started'
+            };
+          });
+          setContentProgress(progressMap);
+
+          // Calculate chapter progress
+          const chapterMap = {};
+          chapters.forEach(chapter => {
+            const chapterFiles = chapterContent.filter(file => file.chapter === chapter);
+            const totalFiles = chapterFiles.length;
+            const completedFiles = chapterFiles.filter(
+              file => progressMap[file]?.percentage === 100
+            ).length;
+            chapterMap[chapter] = Math.round((completedFiles / totalFiles) * 100);
+          });
+          setChapterProgress(chapterMap);
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      }
+    };
+
+    loadInitialData();
+  }, [userId, activePath, chapters, chapterContent]);
 
   const loadSubjects = async () => {
     try {
@@ -118,30 +149,46 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       console.error('Error loading chapter content:', error);
     }
   };
-
+  
   const loadProgressFromDB = async () => {
     if (!userId || !activeContent) return;
 
     try {
       const result = await window.electronAPI.getContentProgress(parseInt(userId));
+      console.log(result, "level 3")
+      console.log(result.progress, "level 9")
       if (result.success) {
         const progressMap = {};
+        console.log("level 8",
+          result.progress.forEach(item => {
+            console.log( item.completion_percentage, "kirann" ,progressMap[item.title] = {
+              percentage: item.completion_percentage || 0,
+              status: item.status || 'not-started'
+            } )
+        })
+      )
+      console.log(progressMap, "Lvel 10")
         result.progress.forEach(item => {
           progressMap[item.title] = {
             percentage: item.completion_percentage || 0,
             status: item.status || 'not-started'
           };
         });
+        console.log(progressMap, "progress map")
         setContentProgress(progressMap);
         
         // Calculate chapter progress after loading progress data
         if (selectedChapter && chapterContent.length > 0) {
           const totalFiles = chapterContent.length;
+          console.log(totalFiles, "level 6", chapterContent)
+          console.log("level 7", chapterContent.filter(
+            file => progressMap[file]))
           const completedFiles = chapterContent.filter(
             file => progressMap[file]?.percentage === 100
           ).length;
+          console.log(completedFiles, "level 4")
           const progress = Math.round((completedFiles / totalFiles) * 100);
-          
+          console.log(progress, " level 5")
           setChapterProgress(prev => ({
             ...prev,
             [selectedChapter]: progress
@@ -155,16 +202,21 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
   const calculateChapterProgress = async (chapter) => {
     try {
-      const chapterPath = `${contentPath}/class${classNumber}/${selectedSubject}/${chapter}`;
-      const files = await window.electronAPI.readDirectory(chapterPath);
-      
-      if (files.length === 0) return 0;
+      if (!chapterContent.length) return 0;
 
-      const completedFiles = files.filter(
-        file => contentProgress[file]?.percentage === 100
-      ).length;
+      // Sum up all file percentages and divide by total files
+      const totalProgress = chapterContent.reduce((sum, file) => {
+        return sum + (contentProgress[file]?.percentage || 0);
+      }, 0);
       
-      return Math.round((completedFiles / files.length) * 100);
+      const averageProgress = Math.round(totalProgress / chapterContent.length);
+      
+      setChapterProgress(prev => ({
+        ...prev,
+        [chapter]: averageProgress
+      }));
+
+      return averageProgress;
     } catch (error) {
       console.error(`Error calculating progress for ${chapter}:`, error);
       return 0;
@@ -238,7 +290,10 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
             name: fileName
           });
           setIsMediaModalOpen(true);
-          updateProgress(fileName);
+          // Update initial progress if not already started
+          if (!contentProgress[fileName]?.percentage) {
+            updateProgress(fileName, 0);
+          }
         } else {
           notifications.show({
             title: 'Error',
@@ -253,53 +308,84 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         });
         
         if (result.success) {
-          updateProgress(fileName);
+          // For PDFs and other files, mark as 100% complete when opened
+          updateProgress(fileName, 100);
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: result.error || 'Failed to open file',
+            color: 'red'
+          });
         }
       }
     } catch (error) {
       console.error('Error in handleFileOpen:', error);
       notifications.show({
         title: 'Error',
-        message: 'Failed to open media file. Please try again.',
+        message: 'Failed to open file. Please try again.',
         color: 'red'
       });
     }
   };
 
-  const updateProgress = async (fileName) => {
-    const contentPaths = await window.electronAPI.getContentPaths();
-    const activePath = contentPaths.find(path => path.is_active);
-    const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
+  const updateProgress = async (fileName, percentage = 100) => {
+    try {
+      if (!activePath) {
+        console.error('No active content path');
+        return;
+      }
 
-    if (contentItem?.success) {
+      const contentItem = await window.electronAPI.getContentItem(activePath.id, fileName);
+      if (!contentItem?.success) {
+        console.error('Content item not found:', fileName);
+        return;
+      }
+
+      // Update local state
       const newContentProgress = {
         ...contentProgress,
         [fileName]: { 
-          percentage: 100, 
-          status: 'completed' 
+          percentage, 
+          status: percentage === 100 ? 'completed' : 'in-progress' 
         }
       };
       setContentProgress(newContentProgress);
 
+      // Update database
       await window.electronAPI.updateContentProgress({
         userId: parseInt(userId),
         folderId: activePath.id,
         contentItemId: contentItem.id,
-        completionPercentage: 100,
-        status: 'completed'
+        completionPercentage: percentage,
+        status: percentage === 100 ? 'completed' : 'in-progress'
       });
 
-      // Update chapter progress
-      const totalFiles = chapterContent.length;
-      const completedFiles = chapterContent.filter(
-        file => newContentProgress[file]?.percentage === 100
-      ).length;
-      const newProgress = Math.round((completedFiles / totalFiles) * 100);
-
-      setChapterProgress(prev => ({
-        ...prev,
-        [selectedChapter]: newProgress
-      }));
+      // Calculate and update chapter progress immediately
+      if (selectedChapter) {
+        const totalProgress = chapterContent.reduce((sum, file) => {
+          // Use the new progress value for the updated file
+          if (file === fileName) {
+            return sum + percentage;
+          }
+          return sum + (newContentProgress[file]?.percentage || 0);
+        }, 0);
+        console.log(totalProgress, "checking level 1")
+        
+        const averageProgress = Math.round(totalProgress / chapterContent.length);
+        console.log(averageProgress, "checking level 2")
+        
+        setChapterProgress(prev => ({
+          ...prev,
+          [selectedChapter]: averageProgress
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to update progress',
+        color: 'red'
+      });
     }
   };
 
@@ -383,125 +469,169 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   };
 
   const MediaPlayer = () => {
-    if (!mediaFile) return null;
+    if (!mediaFile || !activePath) return null;
 
     const isVideo = ['mp4', 'webm'].includes(mediaFile.type);
-    const MediaTag = isVideo ? 'video' : 'audio';
-
-    const containerStyle = {
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#000',
-      position: 'relative',
-    };
-
-    const mediaStyle = {
-      width: '100%',
-      height: '100%',
-      maxHeight: '80vh',
-      objectFit: 'contain',
-      backgroundColor: '#000',
-    };
-
-    // Add state for video loading
+    const [progress, setProgress] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isConverting, setIsConverting] = useState(false);
+    const videoRef = useRef(null);
+    const progressUpdateTimeout = useRef(null);
+
+    // Load saved progress when video loads
+    useEffect(() => {
+      const loadSavedProgress = async () => {
+        if (!videoRef.current) return;
+        
+        try {
+          const contentItem = await window.electronAPI.getContentItem(activePath.id, mediaFile.name);
+          if (contentItem?.success) {
+            const progress = contentProgress[mediaFile.name]?.percentage || 0;
+            if (progress > 0 && progress < 100) {
+              const timeToSeek = (progress / 100) * videoRef.current.duration;
+              videoRef.current.currentTime = timeToSeek;
+            }
+          }
+        } catch (error) {
+          console.error('Error loading saved progress:', error);
+        }
+      };
+
+      if (videoRef.current && videoRef.current.readyState >= 2) {
+        loadSavedProgress();
+      }
+    }, [mediaFile, videoRef.current?.readyState]);
+
+    const handleTimeUpdate = () => {
+      if (!videoRef.current) return;
+      
+      // Clear any existing timeout
+      if (progressUpdateTimeout.current) {
+        clearTimeout(progressUpdateTimeout.current);
+      }
+
+      const video = videoRef.current;
+      const currentProgress = (video.currentTime / video.duration) * 100;
+      setProgress(Math.round(currentProgress));
+
+      // Debounce progress updates to database
+      progressUpdateTimeout.current = setTimeout(() => {
+        // Only update if progress has changed significantly (more than 1%)
+        if (Math.abs(currentProgress - (contentProgress[mediaFile.name]?.percentage || 0)) > 1) {
+          updateProgress(mediaFile.name, Math.round(currentProgress));
+        }
+      }, 1000); // Update database every second at most
+    };
+
+    const handleVideoEnd = () => {
+      updateProgress(mediaFile.name, 100);
+      setProgress(100);
+    };
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (progressUpdateTimeout.current) {
+          clearTimeout(progressUpdateTimeout.current);
+        }
+      };
+    }, []);
 
     return (
       <Modal
         opened={isMediaModalOpen}
         onClose={() => {
+          // Save final progress before closing
+          if (videoRef.current) {
+            const finalProgress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+            updateProgress(mediaFile.name, Math.round(finalProgress));
+          }
           setIsMediaModalOpen(false);
           setMediaFile(null);
         }}
         size="90%"
-        title={mediaFile.name}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>{mediaFile.name}</span>
+            <Progress
+              value={progress}
+              size="sm"
+              style={{ width: '200px' }}
+              color={progress === 100 ? "green" : "orange"}
+            />
+            <span>{progress}%</span>
+          </div>
+        }
         styles={{
-          modal: {
-            backgroundColor: '#1a1b1e',
-          },
-          header: {
-            marginBottom: '10px',
-            color: '#fff'
-          },
-          body: {
-            padding: '0',
-            height: '80vh',
-          }
+          modal: { backgroundColor: '#1a1b1e' },
+          header: { marginBottom: '10px', color: '#fff' },
+          body: { padding: '0', height: '80vh' }
         }}
       >
-        <div style={containerStyle}>
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000',
+          position: 'relative',
+        }}>
           {isLoading && (
             <div style={{ position: 'absolute', color: 'white', zIndex: 1000 }}>
               {isConverting ? 'Converting video format...' : 'Loading video...'}
             </div>
           )}
-          {error  
-          && (
+          {error && (
             <div style={{ position: 'absolute', color: 'red', zIndex: 1000 }}>
               Error: {error}
             </div>
           )}
-          <MediaTag
-            key={mediaFile.path}
-            controls
-            autoPlay
-            playsInline
-            style={mediaStyle}
-            onEnded={() => {
-              setIsMediaModalOpen(false);
-              setMediaFile(null);
-            }}
-            controlsList="nodownload"
-            preload="auto"
-            onLoadStart={() => {
-              console.log('Loading started');
-              setIsLoading(true);
-              setError(null);
-              // Check if video is being converted
-              if (mediaFile.info?.converted) {
-                setIsConverting(true);
-              }
-            }}
-            onLoadedData={() => {
-              console.log('Video loaded');
-              setIsLoading(false);
-              setIsConverting(false);
-            }}
-            onLoadedMetadata={(e) => {
-              const video = e.target;
-              console.log('Metadata loaded:', {
-                duration: video.duration,
-                videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight,
-                readyState: video.readyState,
-                networkState: video.networkState,
-                paused: video.paused,
-                currentSrc: video.currentSrc,
-                error: video.error
-              });
-            }}
-            onError={(e) => {
-              const video = e.target;
-              setIsLoading(false);
-              setError(video.error ? video.error.message : 'Unknown error');
-              console.error('Video error:', {
-                error: video.error,
-                networkState: video.networkState,
-                readyState: video.readyState,
-                currentSrc: video.currentSrc
-              });
-            }}
-          >
-            <source 
-              src={mediaFile.path} 
-              type="video/mp4; codecs=avc1.42E01E,mp4a.40.2"
+          {isVideo ? (
+            <video
+              ref={videoRef}
+              src={mediaFile.path}
+              controls
+              autoPlay
+              style={{
+                width: '100%',
+                height: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+              }}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleVideoEnd}
+              onLoadStart={() => {
+                setIsLoading(true);
+                setError(null);
+              }}
+              onLoadedData={() => {
+                setIsLoading(false);
+                setIsConverting(false);
+              }}
+              onError={(e) => {
+                setIsLoading(false);
+                setError(e.target.error?.message || 'Failed to load video');
+              }}
             />
-            Your browser does not support the video tag.
-          </MediaTag>
+          ) : (
+            <audio
+              ref={videoRef}
+              src={mediaFile.path}
+              controls
+              autoPlay
+              style={{ width: '100%' }}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleVideoEnd}
+              onLoadStart={() => setIsLoading(true)}
+              onLoadedData={() => setIsLoading(false)}
+              onError={(e) => {
+                setIsLoading(false);
+                setError(e.target.error?.message || 'Failed to load audio');
+              }}
+            />
+          )}
         </div>
       </Modal>
     );
