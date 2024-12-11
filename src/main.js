@@ -1058,14 +1058,16 @@ async function checkVideoFile(filePath) {
   try {
     const { stdout } = await execFilePromise('ffprobe', [
       '-v', 'error',
-      '-select_streams', 'v:0',
-      '-show_entries', 'stream=codec_name,width,height',
+      '-select_streams', 'a:0',
+      '-show_entries', 'stream=codec_name',
       '-of', 'json',
       filePath
     ]);
-    return JSON.parse(stdout);
+    const audioInfo = JSON.parse(stdout);
+    console.log('Audio file info:', audioInfo);
+    return audioInfo;
   } catch (error) {
-    console.error('Error checking video file:', error);
+    console.error('Error checking audio file:', error);
     return null;
   }
 }
@@ -1077,7 +1079,7 @@ ipcMain.handle("getDecryptedFilePath", async (event, { filePath, userId }) => {
     const decryptedPath = await decryptFile(filePath);
     await fs.chmod(decryptedPath, 0o444);
     
-    // Check video file
+    // Check video and audio file
     const videoInfo = await checkVideoFile(decryptedPath);
     console.log('Video file info:', videoInfo);
 

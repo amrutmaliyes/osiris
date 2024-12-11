@@ -168,7 +168,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         setContentProgress(progressMap);
         
         // Calculate chapter progress after loading progress data
-        if (selectedChapter && chapterContent[selectedChapter].length > 0) {
+        if (selectedChapter && chapterContent[selectedChapter]?.length > 0) {
           const totalFiles = chapterContent[selectedChapter].length;
           const completedFiles = chapterContent[selectedChapter].filter(
             file => progressMap[file]?.percentage === 100
