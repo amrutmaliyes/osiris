@@ -10,7 +10,9 @@ const { execFile } = require('child_process');
 const util = require('util');
 const execFilePromise = util.promisify(execFile);
 
-const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
+// const API_BASE_URL = "http://localhost:3001"; 
+const API_BASE_URL = "https://osiris-backend-apis.onrender.com"; 
+
 const db = new SQLite( "data.db");
 
 // const db = new SQLite(path.join(app.getPath("userData"), "data.db"));

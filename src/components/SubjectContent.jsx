@@ -18,6 +18,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [activePath, setActivePath] = useState(null);
+  const [loadingFile, setLoadingFile] = useState(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -220,6 +221,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
   const handleFileOpen = async (fileName) => {
     try {
+      setLoadingFile(fileName);
+
       if (!userId) {
         console.error('No user ID available');
         notifications.show({
@@ -295,7 +298,6 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         });
         
         if (result.success) {
-          // For PDFs and other files, mark as 100% complete when opened
           updateProgress(fileName, 100);
         } else {
           notifications.show({
@@ -312,6 +314,8 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         message: 'Failed to open file. Please try again.',
         color: 'red'
       });
+    } finally {
+      setLoadingFile(null);
     }
   };
 
@@ -442,8 +446,10 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         color="orange"
         onClick={() => handleFileOpen(file)}
         radius="md"
+        loading={loadingFile === file}
+        disabled={loadingFile === file}
       >
-        {getFileTypeLabel(file)}
+        {loadingFile === file ? 'Opening...' : getFileTypeLabel(file)}
       </Button>
     </Group>
   );
@@ -748,8 +754,10 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
                       color="orange"
                       onClick={() => handleFileOpen(file)}
                       radius="md"
+                      loading={loadingFile === file}
+                      disabled={loadingFile === file}
                     >
-                      Open
+                      {loadingFile === file ? 'Opening...' : 'Open'}
                     </Button>
                   </Group>
                 ))}
