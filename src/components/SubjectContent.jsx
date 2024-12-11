@@ -152,20 +152,32 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       await loadProgressFromDB();
     }
   };
-
+  
   const loadProgressFromDB = async () => {
     if (!userId || !activeContent) return;
 
     try {
       const result = await window.electronAPI.getContentProgress(parseInt(userId));
+      console.log(result, "level 3")
+      console.log(result.progress, "level 9")
       if (result.success) {
         const progressMap = {};
+        console.log("level 8",
+          result.progress.forEach(item => {
+            console.log( item.completion_percentage, "kirann" ,progressMap[item.title] = {
+              percentage: item.completion_percentage || 0,
+              status: item.status || 'not-started'
+            } )
+        })
+      )
+      console.log(progressMap, "Lvel 10")
         result.progress.forEach(item => {
           progressMap[item.title] = {
             percentage: item.completion_percentage || 0,
             status: item.status || 'not-started'
           };
         });
+        console.log(progressMap, "progress map")
         setContentProgress(progressMap);
         
         // Calculate chapter progress after loading progress data
@@ -174,8 +186,9 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           const completedFiles = chapterContent[selectedChapter].filter(
             file => progressMap[file]?.percentage === 100
           ).length;
+          console.log(completedFiles, "level 4")
           const progress = Math.round((completedFiles / totalFiles) * 100);
-          
+          console.log(progress, " level 5")
           setChapterProgress(prev => ({
             ...prev,
             [selectedChapter]: progress
@@ -360,6 +373,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           }
           return sum + (newContentProgress[file]?.percentage || 0);
         }, 0);
+        console.log(totalProgress, "checking level 1")
         
         const averageProgress = Math.round(totalProgress / chapterContent[selectedChapter].length);
         
