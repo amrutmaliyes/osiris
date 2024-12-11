@@ -9,7 +9,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   const [chapters, setChapters] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(subject);
   const [selectedChapter, setSelectedChapter] = useState(null);
-  const [chapterContent, setChapterContent] = useState([]);
+  const [chapterContent, setChapterContent] = useState({});
   const [userId, setUserId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
   const [contentProgress, setContentProgress] = useState({});
@@ -63,10 +63,10 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
   }, [userId, activeContent]);
 
   useEffect(() => {
-    if (selectedChapter && chapterContent.length > 0) {
-      calculateChapterProgress(selectedChapter);
+    if (chapters.length > 0 && Object.keys(chapterContent).length > 0) {
+      calculateAllChaptersProgress(chapters);
     }
-  }, [contentProgress, selectedChapter, chapterContent]);
+  }, [contentProgress, chapters, chapterContent]);
 
   useEffect(() => {
     const getActivePath = async () => {
@@ -96,7 +96,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           // Calculate chapter progress
           const chapterMap = {};
           chapters.forEach(chapter => {
-            const chapterFiles = chapterContent.filter(file => file.chapter === chapter);
+            const chapterFiles = chapterContent[chapter] || [];
             const totalFiles = chapterFiles.length;
             const completedFiles = chapterFiles.filter(
               file => progressMap[file]?.percentage === 100
@@ -128,25 +128,27 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
       const subjectPath = `${contentPath}/class${classNumber}/${subjectName}`;
       const chapterFiles = await window.electronAPI.readDirectory(subjectPath);
       setChapters(chapterFiles);
-      setSelectedChapter(null);
-      setChapterContent([]);
 
-      await calculateAllChaptersProgress(chapterFiles);
+      // Load content for all chapters upfront
+      const allChapterContent = {};
+      for (const chapter of chapterFiles) {
+        const chapterPath = `${contentPath}/class${classNumber}/${subjectName}/${chapter}`;
+        const files = await window.electronAPI.readDirectory(chapterPath);
+        allChapterContent[chapter] = files;
+      }
+      setChapterContent(allChapterContent);
+
+      // Load progress after setting chapter content
+      await loadProgressFromDB();
     } catch (error) {
       console.error('Error loading chapters:', error);
     }
   };
 
   const loadChapterContent = async () => {
-    try {
-      const chapterPath = `${contentPath}/class${classNumber}/${selectedSubject}/${selectedChapter}`;
-      const files = await window.electronAPI.readDirectory(chapterPath);
-      setChapterContent(files);
-      
-      // Load progress after setting chapter content
+    if (selectedChapter && chapterContent[selectedChapter]) {
+      // No need to load from disk again, just use the cached content
       await loadProgressFromDB();
-    } catch (error) {
-      console.error('Error loading chapter content:', error);
     }
   };
 
@@ -166,9 +168,9 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
         setContentProgress(progressMap);
         
         // Calculate chapter progress after loading progress data
-        if (selectedChapter && chapterContent.length > 0) {
-          const totalFiles = chapterContent.length;
-          const completedFiles = chapterContent.filter(
+        if (selectedChapter && chapterContent[selectedChapter].length > 0) {
+          const totalFiles = chapterContent[selectedChapter].length;
+          const completedFiles = chapterContent[selectedChapter].filter(
             file => progressMap[file]?.percentage === 100
           ).length;
           const progress = Math.round((completedFiles / totalFiles) * 100);
@@ -186,14 +188,15 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
   const calculateChapterProgress = async (chapter) => {
     try {
-      if (!chapterContent.length) return 0;
+      const chapterFiles = chapterContent[chapter] || [];
+      if (!chapterFiles.length) return 0;
 
       // Sum up all file percentages and divide by total files
-      const totalProgress = chapterContent.reduce((sum, file) => {
+      const totalProgress = chapterFiles.reduce((sum, file) => {
         return sum + (contentProgress[file]?.percentage || 0);
       }, 0);
       
-      const averageProgress = Math.round(totalProgress / chapterContent.length);
+      const averageProgress = Math.round(totalProgress / chapterFiles.length);
       
       setChapterProgress(prev => ({
         ...prev,
@@ -346,7 +349,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
 
       // Calculate and update chapter progress immediately
       if (selectedChapter) {
-        const totalProgress = chapterContent.reduce((sum, file) => {
+        const totalProgress = chapterContent[selectedChapter].reduce((sum, file) => {
           // Use the new progress value for the updated file
           if (file === fileName) {
             return sum + percentage;
@@ -354,7 +357,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
           return sum + (newContentProgress[file]?.percentage || 0);
         }, 0);
         
-        const averageProgress = Math.round(totalProgress / chapterContent.length);
+        const averageProgress = Math.round(totalProgress / chapterContent[selectedChapter].length);
         
         setChapterProgress(prev => ({
           ...prev,
@@ -709,9 +712,6 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
                       />
                       <Text size="xs" color="dimmed" align="center" mt={5}>
                         {chapterProgress[chapter] || 0}% Complete
-                        {/* {chapterContent.length > 0 && ` (${chapterContent.filter(
-                          file => contentProgress[file]?.percentage === 100
-                        ).length}/${chapterContent.length} files)`} */}
                       </Text>
                     </div>
                   </Group>
@@ -719,7 +719,7 @@ const SubjectContent = ({ subject, classNumber, contentPath, onSubjectChange }) 
               </Accordion.Control>
               
               <Accordion.Panel>
-                {selectedChapter === chapter && chapterContent.map((file, fileIndex) => (
+                {selectedChapter === chapter && chapterContent[chapter]?.map((file, fileIndex) => (
                   <Group 
                     key={fileIndex}
                     style={{
