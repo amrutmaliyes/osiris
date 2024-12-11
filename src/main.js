@@ -10,7 +10,9 @@ const { execFile } = require('child_process');
 const util = require('util');
 const execFilePromise = util.promisify(execFile);
 
-const API_BASE_URL = "http://localhost:3001"; // Replace with your actual API URL
+// const API_BASE_URL = "http://localhost:3001"; 
+const API_BASE_URL = "https://osiris-backend-apis.onrender.com"; 
+
 const db = new SQLite( "data.db");
 
 // const db = new SQLite(path.join(app.getPath("userData"), "data.db"));
@@ -1058,14 +1060,16 @@ async function checkVideoFile(filePath) {
   try {
     const { stdout } = await execFilePromise('ffprobe', [
       '-v', 'error',
-      '-select_streams', 'v:0',
-      '-show_entries', 'stream=codec_name,width,height',
+      '-select_streams', 'a:0',
+      '-show_entries', 'stream=codec_name',
       '-of', 'json',
       filePath
     ]);
-    return JSON.parse(stdout);
+    const audioInfo = JSON.parse(stdout);
+    console.log('Audio file info:', audioInfo);
+    return audioInfo;
   } catch (error) {
-    console.error('Error checking video file:', error);
+    console.error('Error checking audio file:', error);
     return null;
   }
 }
@@ -1077,7 +1081,7 @@ ipcMain.handle("getDecryptedFilePath", async (event, { filePath, userId }) => {
     const decryptedPath = await decryptFile(filePath);
     await fs.chmod(decryptedPath, 0o444);
     
-    // Check video file
+    // Check video and audio file
     const videoInfo = await checkVideoFile(decryptedPath);
     console.log('Video file info:', videoInfo);
 
