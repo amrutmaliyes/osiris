@@ -23,10 +23,12 @@ const Account = () => {
     head_of_institution: "",
   });
 
-  // Product key details state
+  // Updated product key details state
   const [productDetails, setProductDetails] = useState({
+    activationDate: "",
     startDate: "",
     endDate: "",
+    totalDays: "",
     daysConsumed: "",
     daysLeft: "",
   });
@@ -47,20 +49,15 @@ const Account = () => {
           mobile_no: data.mobile_no,
           head_of_institution: data.head_of_institution,
         });
-
-        // Calculate days consumed and remaining
-        const start = new Date(data.start_date);
-        const end = new Date(data.end_date);
-        const today = new Date();
-
-        const daysConsumed = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-        const daysLeft = Math.floor((end - today) / (1000 * 60 * 60 * 24));
-
+        // console.log(data,"data from acc")
+       
         setProductDetails({
-          startDate: start.toLocaleDateString(),
-          endDate: end.toLocaleDateString(),
-          daysConsumed: Math.max(0, daysConsumed),
-          daysLeft: Math.max(0, daysLeft),
+          activationDate: data.activation_date,
+          startDate: data.start_date,
+          endDate: data.end_date,
+          totalDays: data.totalDays,
+          daysConsumed: data.daysConsumed,
+          daysLeft: data.daysLeft,
         });
       }
     } catch (error) {
@@ -251,8 +248,8 @@ const Account = () => {
             }}
           >
             <TextInput
-              label="Start Date"
-              value={productDetails.startDate}
+              label="Activation Date"
+              value={productDetails.activationDate}
               readOnly
               styles={{
                 input: { fontSize: "20px", height: "50px", backgroundColor: "#f1f3f5" },

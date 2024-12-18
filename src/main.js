@@ -10,8 +10,8 @@ const { execFile } = require('child_process');
 const util = require('util');
 const execFilePromise = util.promisify(execFile);
 
-// const API_BASE_URL = "http://localhost:3001"; 
-const API_BASE_URL = "https://osiris-backend-apis.onrender.com"; 
+const API_BASE_URL = "http://localhost:3001"; 
+// const API_BASE_URL = "https://osiris-backend-apis.onrender.com"; 
 
 const db = new SQLite( "data.db");
 
@@ -43,6 +43,7 @@ const initDb = () => {
       mobile_no TEXT NOT NULL,
       serial_mac_id TEXT NOT NULL,
       activation_code TEXT NOT NULL UNIQUE,
+      activation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
       start_date DATETIME,
       end_date DATETIME,
       is_active INTEGER DEFAULT 1,
@@ -178,11 +179,12 @@ ipcMain.handle("activate-product", async (event, activationData) => {
           mobile_no,
           serial_mac_id,
           activation_code,
+          activation_date,
           start_date,
           end_date,
           is_active,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, datetime('now'))
       `);
 
       const insertUserStmt = db.prepare(`
@@ -656,6 +658,7 @@ ipcMain.handle("get-organization-details", async () => {
         email,
         mobile_no,
         head_of_institution,
+        activation_date,
         start_date,
         end_date,
         created_at
@@ -670,19 +673,28 @@ ipcMain.handle("get-organization-details", async () => {
       return { success: false, error: "No activation found" };
     }
 
-    // Calculate days consumed and remaining
-    const startDate = new Date(data.start_date);
+    // Parse all relevant dates
+    const activationDate = new Date(data.activation_date);
     const endDate = new Date(data.end_date);
     const today = new Date();
 
-    const daysConsumed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+    // Calculate total days in subscription (from activation to expiry)
+    const totalDays = Math.floor((endDate - activationDate) / (1000 * 60 * 60 * 24));
+
+    // Calculate days consumed (from activation date to current date)
+    const daysConsumed = Math.floor((today - activationDate) / (1000 * 60 * 60 * 24));
+
+    // Calculate days left (from current date to expiry date)
     const daysLeft = Math.floor((endDate - today) / (1000 * 60 * 60 * 24));
-  // console.log();
 
     return {
       success: true,
       data: {
         ...data,
+        activation_date: activationDate.toLocaleDateString(),
+        start_date: activationDate.toLocaleDateString(), // Use activation date as start date
+        end_date: endDate.toLocaleDateString(),
+        totalDays: Math.max(0, totalDays),
         daysConsumed: Math.max(0, daysConsumed),
         daysLeft: Math.max(0, daysLeft)
       }
@@ -1118,6 +1130,27 @@ ipcMain.handle("getDecryptedFilePath", async (event, { filePath, userId }) => {
     return { 
       success: false, 
       error: error.message 
+    };
+  }
+});
+
+// Add this with other IPC handlers
+ipcMain.handle("submit-support", async (event, supportData) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/support`,
+      supportData
+    );
+    
+    return { 
+      success: true, 
+      data: response.data 
+    };
+  } catch (error) {
+    console.error("Support submission error:", error);
+    return { 
+      success: false, 
+      error: error.response?.data?.message || error.message || "Failed to submit support request" 
     };
   }
 });

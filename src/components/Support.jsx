@@ -11,10 +11,13 @@ import {
   Group,
   Box,
   Title,
+  // notifications,
 } from "@mantine/core";
+import { Notifications, notifications } from '@mantine/notifications';
+
 
 const Support = () => {
-  // Form state
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     institute: "",
     name: "",
@@ -23,18 +26,62 @@ const Support = () => {
     complaint: "",
   });
 
-  // Handle input changes
   const handleInputChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
-    // Add your form submission logic here
-    console.log(formData);
+  const handleSubmit = async () => {
+    try {
+      console.log('Starting form submission...', formData);
+      setLoading(true);
+      
+      if (!formData.institute || !formData.name || !formData.phone || !formData.email || !formData.complaint) {
+        console.log('Validation failed - missing fields');
+        notifications.show({
+          title: 'Error',
+          message: 'Please fill in all fields',
+          color: 'red',
+        });
+        return;
+      }
+
+      console.log('Calling submitSupport API with data:', formData);
+      
+      const result = await window.electronAPI.submitSupport(formData);
+      console.log('API response:', result);
+
+      if (result.success) {
+        console.log('Submission successful');
+        notifications.show({
+          title: 'Success',
+          message: 'Support request submitted successfully',
+          color: 'green',
+        });
+        
+        setFormData({
+          institute: "",
+          name: "",
+          phone: "",
+          email: "",
+          complaint: "",
+        });
+      } else {
+        console.log('Submission failed:', result.error);
+        throw new Error(result.error || 'Failed to submit support request');
+      }
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      notifications.show({
+        title: 'Error',
+        message: error.message,
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+      console.log('Form submission process completed');
+    }
   };
 
-  // Breadcrumb items
   const breadcrumbItems = [{ title: "Support", href: "/" }].map(
     (item, index) => (
       <Anchor href={item.href} key={index}>
@@ -51,7 +98,6 @@ const Support = () => {
         <Breadcrumbs mb="lg">{breadcrumbItems}</Breadcrumbs>
 
         <Container size="lg">
-          {/* Contact Form Section */}
           <Box mb={50}>
             <Title order={1} color="gray.7" mb={50}>
               CONTACT DETAILS
@@ -153,19 +199,19 @@ const Support = () => {
             <Group position="center" mt={50}>
               <Button
                 color="#E78728"
-                size="xl" // Use a larger predefined size
+                size="xl"
                 onClick={handleSubmit}
-                // sx={{ minWidth: 800 }}
+                loading={loading}
                 styles={{
                   root: {
-                    fontSize: "24px", // Text size
-                    height: "60px", // Button height
-                    padding: "8px 10px", // Inner padding
-                    minWidth: "300px", // Custom minimum width
+                    fontSize: "24px",
+                    height: "60px",
+                    padding: "8px 10px",
+                    minWidth: "300px",
                   },
                 }}
               >
-                Submit
+                {loading ? 'Submitting...' : 'Submit'}
               </Button>
             </Group>
           </Box>

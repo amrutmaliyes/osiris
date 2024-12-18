@@ -35,4 +35,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // updateActivation: (data) => ipcRenderer.invoke("update-activation", data),
   debugTables: () => ipcRenderer.invoke('debug-tables'),
   getDecryptedFilePath: (data) => ipcRenderer.invoke('getDecryptedFilePath', data),
+  submitSupport: (data) => ipcRenderer.invoke("submit-support", data),
 });
