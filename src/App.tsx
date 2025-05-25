@@ -1,50 +1,61 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useState, useEffect } from "react";
+import "./input.css";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ActivationPage from './pages/ActivationPage';
+import LoginPage from './pages/LoginPage';
+import NewActivationForm from './pages/NewActivationForm';
+import ReactivationForm from './pages/ReactivationForm';
+import { invoke } from '@tauri-apps/api/core';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [initialRoute, setInitialRoute] = useState('/');
+  const [loading, setLoading] = useState(true);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  const handleLoginSuccess = () => {};
+
+  useEffect(() => {
+    const checkActivationAndRoute = async () => {
+      try {
+        const hasActivation = await invoke('has_activation');
+        console.log('has_activation result:', hasActivation);
+
+        if (hasActivation) {
+          const isExpired = await invoke('check_activation_expiry');
+          console.log('check_activation_expiry result:', isExpired);
+          if (isExpired) {
+            setInitialRoute('/reactivation');
+          } else {
+            setInitialRoute('/login');
+          }
+        } else {
+          setInitialRoute('/activation');
+        }
+      } catch (error) {
+        console.error('Error checking activation or expiry:', error);
+        setInitialRoute('/activation');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkActivationAndRoute();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <Router>
+      <Routes>
+        <Route path="/activation" element={<ActivationPage />} />
+        <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
+        <Route path="/new-activation" element={<NewActivationForm />} />
+        <Route path="/reactivation" element={<ReactivationForm />} />
+        <Route path="/" element={<Navigate to={initialRoute} replace />} />
+        <Route path="*" element={<Navigate to={initialRoute} replace />} />
+      </Routes>
+    </Router>
   );
 }
 
