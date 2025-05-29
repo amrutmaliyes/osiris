@@ -2,11 +2,12 @@
 
 use dirs;
 use rusqlite::{Connection, Result};
+use std::path::PathBuf;
 
 const DB_NAME: &str = "app.db";
 
 // Function to get the database file path
-pub fn get_db_path() -> Result<std::path::PathBuf, String> {
+pub fn get_db_path() -> Result<PathBuf, String> {
     dirs::data_dir()
         .map(|mut path| {
             path.push(DB_NAME);
@@ -19,6 +20,14 @@ pub fn get_db_path() -> Result<std::path::PathBuf, String> {
 pub fn initialize_db() -> Result<(), String> {
     let db_path = get_db_path()?;
 
+    // Check if the database file already exists
+    if db_path.exists() {
+        println!("Database file already exists. Skipping initialization.");
+        return Ok(());
+    }
+
+    println!("Database file not found. Initializing database...");
+
     // Create directory if it doesn't exist
     if let Some(parent) = db_path.parent() {
         if !parent.exists() {
@@ -26,6 +35,7 @@ pub fn initialize_db() -> Result<(), String> {
         }
     }
 
+    // Open connection (this will create the file if it doesn't exist)
     let mut db = Connection::open(&db_path).map_err(|e| e.to_string())?;
 
     let table_creation_sqls = [
@@ -83,6 +93,8 @@ pub fn initialize_db() -> Result<(), String> {
         tx.execute(sql, []).map_err(|e| e.to_string())?;
     }
     tx.commit().map_err(|e| e.to_string())?;
+
+    println!("Database initialization complete.");
 
     Ok(())
 }
