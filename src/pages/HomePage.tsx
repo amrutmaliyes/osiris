@@ -3,25 +3,72 @@ import { useNavigate } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
 import { invoke } from "@tauri-apps/api/core";
 import { useAuth } from "../contexts/AuthContext";
+import ContentBrowser from "../components/ContentBrowser";
 
 function HomePage() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const [hasActiveContentPath, setHasActiveContentPath] = useState<boolean>(false);
   const [loadingContentPath, setLoadingContentPath] = useState<boolean>(true);
-  const [directories, setDirectories] = useState<string[]>([]);
-  const [loadingDirectories, setLoadingDirectories] = useState<boolean>(false);
-  const [directoriesError, setDirectoriesError] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<string | null>(null);
 
   const handleAddContentPathClick = () => {
     navigate("/content");
   };
+
+  const handleNavigate = (newPath: string) => {
+    setCurrentPath(newPath);
+  };
+
+  const handleBack = () => {
+    if (currentPath && initialActivePath) {
+      // Ensure we don't navigate above the initial active path
+      if (currentPath === initialActivePath) {
+        // Already at the root of the active path, do nothing or handle as needed
+        return;
+      }
+
+      const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+
+      // If the parent path is the same as the initial active path or deeper within it,
+      // set the current path to the parent path.
+      if (initialActivePath.startsWith(parentPath) || parentPath.startsWith(initialActivePath)) {
+           setCurrentPath(parentPath || initialActivePath); // Go back or to active root if parent is empty
+      } else {
+           // This case should ideally not be reached with correct navigation, 
+           // but as a fallback, navigate to the initial active path.
+           setCurrentPath(initialActivePath);
+      }
+    }
+  };
+
+  const handleOpenFile = async (filePath: string) => {
+    console.log("Attempting to open file:", filePath);
+    try {
+        await invoke('open_file_in_system', { path: filePath });
+    } catch (error) {
+        console.error("Error opening file:", error);
+        // Optionally show an error message to the user
+    }
+  };
+
+  const [initialActivePath, setInitialActivePath] = useState<string | null>(null);
 
   useEffect(() => {
     const checkContentPath = async () => {
       try {
         const hasPath = (await invoke("has_active_content_path")) as boolean;
         setHasActiveContentPath(hasPath);
+
+        if (hasPath) {
+          const activePath = await invoke("get_active_content_path") as string | null;
+          setInitialActivePath(activePath); // Store initial active path
+          setCurrentPath(activePath); // Set initial current path for browsing
+        } else {
+          setInitialActivePath(null);
+          setCurrentPath(null);
+        }
+
       } catch (error) {
         console.error("Error checking content path:", error);
       } finally {
@@ -33,61 +80,38 @@ function HomePage() {
 
   }, []);
 
-  useEffect(() => {
-    const fetchDirectories = async () => {
-        setLoadingDirectories(true);
-        setDirectoriesError(null);
-        try {
-            const activePath = await invoke("get_active_content_path") as string | null;
-            if (activePath) {
-                const dirs = await invoke("list_directories_in_path", { path: activePath }) as string[];
-                setDirectories(dirs);
-            } else {
-                setDirectories([]);
-            }
-        } catch (error: any) {
-            console.error("Error listing directories:", error);
-            setDirectoriesError(`Failed to load directories: ${error}`);
-        } finally {
-            setLoadingDirectories(false);
-        }
-    };
-
-    if (hasActiveContentPath) {
-        fetchDirectories();
-    }
-  }, [hasActiveContentPath]);
-
   if (userRole === "admin" && loadingContentPath) {
     return <div>Loading content path status...</div>;
   }
 
+  const isAtContentRoot = currentPath === initialActivePath && hasActiveContentPath;
+
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Admin Sidebar only for admin */}
       {userRole === "admin" && <AdminSidebar />}
 
-      {/* Main content area for all users */}
-      <div className={`flex-1 p-4 ${userRole === "admin" ? '' : 'ml-0'}`}> {/* Adjust margin if not admin */}
+      <div className={`flex-1 p-4 ${userRole === "admin" ? '' : 'ml-0'}`}>
         {hasActiveContentPath ? (
           <div className="flex-1 p-4">
-              <h1 className="text-3xl font-bold mb-4">Content Area</h1>
-              {loadingDirectories ? (
-                  <p>Loading content...</p>
-              ) : directoriesError ? (
-                  <div className="text-red-700">{directoriesError}</div>
-              ) : directories.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {directories.map(dir => (
-                          <div key={dir} className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out">
-                              <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                              <p className="mt-2 text-sm font-medium text-gray-700 text-center break-all">{dir}</p>
-                          </div>
-                      ))}
-                  </div>
-              ) : (
-                  <p className="text-gray-600">No directories found in the active content path.</p>
-              )}
+            <h1 className="text-3xl font-bold mb-4">Content Area</h1>
+
+            {!isAtContentRoot && currentPath !== null && (
+              <button
+                className="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-150 ease-in-out"
+                onClick={handleBack}
+              >
+                Back
+              </button>
+            )}
+
+            {currentPath && initialActivePath && (
+              <ContentBrowser
+                currentPath={currentPath}
+                onNavigate={handleNavigate}
+                onOpenFile={handleOpenFile}
+                initialActivePath={initialActivePath} // Pass initialActivePath
+              />
+            )}
           </div>
         ) : (userRole === "admin" ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4">

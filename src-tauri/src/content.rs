@@ -3,12 +3,20 @@ use rusqlite::{Connection, Result, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use open;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ContentPath {
     pub id: i64,
     pub path: String,
     pub is_active: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileEntry {
+    pub name: String,
+    #[serde(rename = "isDirectory")] // Use camelCase for frontend
+    pub is_directory: bool,
 }
 
 // Function to check if there is at least one active content path
@@ -121,26 +129,29 @@ pub fn get_active_content_path() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub fn list_directories_in_path(path: String) -> Result<Vec<String>, String> {
+pub fn list_directories_in_path(path: String) -> Result<Vec<FileEntry>, String> {
     let path = Path::new(&path);
 
     if !path.is_dir() {
         return Err(format!("Path is not a directory: {}", path.display()));
     }
 
-    let mut directories = Vec::new();
+    let mut entries = Vec::new();
     for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
-        if path.is_dir() {
-            if let Some(dir_name) = path.file_name() {
-                if let Some(dir_name_str) = dir_name.to_str() {
-                    directories.push(dir_name_str.to_string());
-                }
+        if let Some(name) = path.file_name() {
+            if let Some(name_str) = name.to_str() {
+                entries.push(FileEntry {
+                    name: name_str.to_string(),
+                    is_directory: path.is_dir(),
+                });
             }
         }
     }
-    Ok(directories)
+    // Optional: Sort entries alphabetically
+    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(entries)
 }
 
 #[tauri::command]
@@ -166,4 +177,19 @@ pub fn delete_content_path(id: i32) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn open_file_in_system(path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+
+    if !path.is_file() {
+        return Err(format!("Path is not a file: {}", path.display()));
+    }
+
+    // Use the 'open' crate to open the file with the default application
+    match open::that(path) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to open file: {}", e)),
+    }
 } 
