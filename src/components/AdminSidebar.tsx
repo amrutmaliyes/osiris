@@ -1,13 +1,40 @@
 import logo from "../assets/logo.svg";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function AdminSidebar() {
+  const navigate = useNavigate();
+
+  const handleLogoutClick = () => {
+    navigate("/login");
+  };
+
   return (
     <div className="w-64 bg-gray-900 text-gray-200 flex flex-col shadow-lg">
       <div className="flex items-center justify-center h-20 border-b border-gray-700 p-4">
         <img src={logo} alt="Osiris Logo" className="h-10" />
       </div>
       <nav className="mt-6 flex-1 px-4 space-y-2">
+        <Link
+          to="/home"
+          className="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
+        >
+          <svg
+            className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-300"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+          Home
+        </Link>
         <Link
           to="/content"
           className="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
@@ -99,6 +126,29 @@ function AdminSidebar() {
           Users
         </Link>
       </nav>
+      <div className="mt-auto px-4 py-4 border-t border-gray-700">
+        <button
+          onClick={handleLogoutClick}
+          className="group flex items-center w-full px-2 py-2 text-base font-medium rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
+        >
+          <svg
+            className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-300"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-10a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+          Logout
+        </button>
+      </div>
     </div>
   );
 }

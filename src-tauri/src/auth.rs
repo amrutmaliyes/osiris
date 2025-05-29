@@ -1,7 +1,7 @@
 // src-tauri/src/auth.rs
 
 use crate::db::get_db_path; // Import db module and necessary functions
-use chrono::{NaiveDateTime, Utc, Duration, DateTime, FixedOffset}; // Add chrono to Cargo.toml for date handling
+use chrono::{NaiveDateTime, Utc, DateTime}; // Add chrono to Cargo.toml for date handling
 use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize}; // Assuming get_db_path is public in db.rs
 use std::collections::HashMap;
@@ -49,13 +49,7 @@ struct NewActivationApiResponse {
 
 #[derive(Debug, Deserialize)]
 struct ApiProductKeyDetails {
-    // Include fields from your product_keys table returned by the API
-    id: i64,
-    product_key: String,
-    username: String,
-    password: String,
-    expiry_date: String, // Assuming expiry_date is returned as a string
-    // ... other relevant fields from product_keys
+    expiry_date: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,7 +68,7 @@ struct ReactivationApiResponse {
 }
 
 #[tauri::command]
-pub fn get_mac_address() -> Result<String, String> {
+pub async fn get_mac_address() -> Result<String, String> {
     match mac_address::get_mac_address() {
         Ok(Some(ma)) => Ok(ma.to_string()),
         Ok(None) => Err("Could not get MAC address".to_string()),
@@ -85,7 +79,7 @@ pub fn get_mac_address() -> Result<String, String> {
 #[tauri::command]
 pub async fn perform_new_activation(form_data: NewActivationData) -> Result<String, String> {
     // 1. Get MAC address
-    let mac_id = get_mac_address()?;
+    let mac_id = get_mac_address().await?;
 
     // Clone the necessary form_data fields for the API request body and DB insert
     let institution_name_clone = form_data.institution_name.clone();
@@ -182,7 +176,7 @@ pub async fn perform_new_activation(form_data: NewActivationData) -> Result<Stri
 #[tauri::command]
 pub async fn perform_reactivation(activation_key: String) -> Result<String, String> {
     // 1. Get MAC address
-    let mac_id = get_mac_address()?;
+    let mac_id = get_mac_address().await?;
 
     // 2. Call backend API to verify key and MAC ID
     let api_url = "http://iactiveapi.lattech.in/api/devices/reactivate"; // Assuming reactivation endpoint

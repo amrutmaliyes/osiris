@@ -80,7 +80,19 @@ function ContentPathPage() {
     }
   };
 
-  const hasActivePath = contentPaths.some(p => p.is_active);
+  const handleSetActive = async (id: number) => {
+    setError(null);
+    setMessage(null);
+    try {
+      await invoke('set_active_content_path', { id });
+      setMessage(`Content path with ID ${id} set as active!`);
+      const updatedPaths = await invoke('get_content_paths') as ContentPath[];
+      setContentPaths(updatedPaths);
+    } catch (err: any) {
+      console.error("Failed to set active content path:", err);
+      setError(`Error setting content path active: ${err}`);
+    }
+  };
 
   if (userRole !== 'admin') {
     return (
@@ -105,39 +117,37 @@ function ContentPathPage() {
           <div className="p-4 rounded-md bg-red-100 text-red-700">{error}</div>
         ) : (
           <>
-            {!hasActivePath && (
-              <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
-                <img src={logo} alt="Osiris Logo" className="h-12 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold mb-4 text-center">Add New Content Path</h2>
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="text"
-                    className="flex-grow border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    value={newPath}
-                    readOnly
-                    placeholder="No directory selected"
-                  />
-                  <button
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out"
-                    onClick={handleBrowseClick}
-                  >
-                    Browse
-                  </button>
-                  <button
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-150 ease-in-out"
-                    onClick={handleAddPath}
-                    disabled={!newPath}
-                  >
-                    Add Path
-                  </button>
-                </div>
-                {message && (
-                  <div className="mt-4 p-3 rounded-md bg-green-100 text-green-700">
-                    {message}
-                  </div>
-                )}
+            <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
+              <img src={logo} alt="Osiris Logo" className="h-12 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-4 text-center">Add New Content Path</h2>
+              <div className="flex items-center space-x-4">
+                <input
+                  type="text"
+                  className="flex-grow border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={newPath}
+                  readOnly
+                  placeholder="No directory selected"
+                />
+                <button
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out"
+                  onClick={handleBrowseClick}
+                >
+                  Browse
+                </button>
+                <button
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-150 ease-in-out"
+                  onClick={handleAddPath}
+                  disabled={!newPath}
+                >
+                  Add Path
+                </button>
               </div>
-            )}
+              {message && (
+                <div className="mt-4 p-3 rounded-md bg-green-100 text-green-700">
+                  {message}
+                </div>
+              )}
+            </div>
 
             <div className="bg-white rounded-lg shadow-xl p-6">
               <h2 className="text-xl font-semibold mb-4 text-gray-800">Existing Content Paths</h2>
@@ -153,6 +163,9 @@ function ContentPathPage() {
                       </th>
                       <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Status
+                      </th>
+                      <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -175,6 +188,16 @@ function ContentPathPage() {
                             ></span>
                             <span className="relative">{path.is_active ? 'Active' : 'Inactive'}</span>
                           </span>
+                        </td>
+                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                          {!path.is_active && (
+                            <button
+                              className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-3 rounded text-xs transition duration-150 ease-in-out"
+                              onClick={() => handleSetActive(path.id)}
+                            >
+                              Set Active
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

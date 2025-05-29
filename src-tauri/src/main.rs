@@ -22,7 +22,10 @@ fn main() {
             auth::perform_login,
             content::has_active_content_path,
             content::add_and_set_active_content_path,
-            content::get_content_paths
+            content::get_content_paths,
+            content::set_active_content_path,
+            content::get_active_content_path,
+            content::list_directories_in_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
