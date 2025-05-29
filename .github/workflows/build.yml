@@ -5,44 +5,38 @@ on:
     branches:
       - main # Or your default branch like master
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-windows:
-    runs-on: windows-latest # Use a Windows runner
+  build-binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
 
+    runs-on: ${{ matrix.platform }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: setup node
+        uses: actions/setup-node@v1
         with:
-          node-version: '20' # Use a Node.js version compatible with your project
+          node-version: 20
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust stable
+        uses: actions-rs/toolchain@v1
         with:
-          # Add the Windows target for cross-compilation
-          targets: x86_64-pc-windows-msvc
+          toolchain: stable
 
-      # Add this step to install sqlite3 using vcpkg
-      - name: Install SQLite3 via vcpkg
-        uses: microsoft/vcpkg-action@v0
-        with:
-          # Specify the packages to install
-          ports: sqlite3
-          # Specify the target triplet matching the Rust target
-          triplet: x64-windows-static # Use static linking for easier distribution
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install dependencies
-        run: npm install # Or yarn install, pnpm install depending on your package manager
+      - uses: JonasKruckenberg/tauri-build@v1
+        id: tauri_build
 
-      - name: Build Tauri app for Windows
-        run: npx tauri build --target x86_64-pc-windows-msvc
-
-      - name: Upload Windows executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-windows-build
-          # The path where Tauri places the built executable (adjust if necessary)
-          path: src-tauri/target/x86_64-pc-windows-msvc/release/
-          # Optionally, specify the exact file pattern if needed, e.g., path: src-tauri/target/x86_64-pc-windows-msvc/release/*.exe 
+    # You can now use the JSON array of artifacts under `steps.tauri_build.outputs.artifacts` to post-process/upload your bundles
