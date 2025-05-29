@@ -24,6 +24,15 @@ jobs:
           # Add the Windows target for cross-compilation
           targets: x86_64-pc-windows-msvc
 
+      # Add this step to install sqlite3 using vcpkg
+      - name: Install SQLite3 via vcpkg
+        uses: microsoft/vcpkg-action@v0
+        with:
+          # Specify the packages to install
+          ports: sqlite3
+          # Specify the target triplet matching the Rust target
+          triplet: x64-windows-static # Use static linking for easier distribution
+
       - name: Install dependencies
         run: npm install # Or yarn install, pnpm install depending on your package manager
 
@@ -36,4 +45,4 @@ jobs:
           name: tauri-windows-build
           # The path where Tauri places the built executable (adjust if necessary)
           path: src-tauri/target/x86_64-pc-windows-msvc/release/
-          # Optionally, specify the exact file pattern if needed, e.g., path: src-tauri/target/x86_64-pc-windows-msvc/release/*.exe
+          # Optionally, specify the exact file pattern if needed, e.g., path: src-tauri/target/x86_64-pc-windows-msvc/release/*.exe 
