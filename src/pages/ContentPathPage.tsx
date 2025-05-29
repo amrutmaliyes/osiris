@@ -94,6 +94,22 @@ function ContentPathPage() {
     }
   };
 
+  const handleDeletePath = async (id: number) => {
+    setError(null);
+    setMessage(null);
+    if (window.confirm('Are you sure you want to delete this content path?')) {
+      try {
+        await invoke('delete_content_path', { id });
+        setMessage(`Content path with ID ${id} deleted successfully.`);
+        const updatedPaths = await invoke('get_content_paths') as ContentPath[];
+        setContentPaths(updatedPaths);
+      } catch (err: any) {
+        console.error("Failed to delete content path:", err);
+        setError(`Error deleting content path: ${err}`);
+      }
+    }
+  };
+
   if (userRole !== 'admin') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -191,12 +207,20 @@ function ContentPathPage() {
                         </td>
                         <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                           {!path.is_active && (
-                            <button
-                              className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-3 rounded text-xs transition duration-150 ease-in-out"
-                              onClick={() => handleSetActive(path.id)}
-                            >
-                              Set Active
-                            </button>
+                            <>
+                              <button
+                                className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-3 rounded text-xs transition duration-150 ease-in-out"
+                                onClick={() => handleSetActive(path.id)}
+                              >
+                                Set Active
+                              </button>
+                              <button
+                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-xs ml-2 transition duration-150 ease-in-out"
+                                onClick={() => handleDeletePath(path.id)}
+                              >
+                                Delete
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>

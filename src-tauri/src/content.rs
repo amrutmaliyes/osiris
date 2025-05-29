@@ -141,4 +141,29 @@ pub fn list_directories_in_path(path: String) -> Result<Vec<String>, String> {
         }
     }
     Ok(directories)
+}
+
+#[tauri::command]
+pub fn delete_content_path(id: i32) -> Result<(), String> {
+    let db_path = get_db_path()?;
+    let db = Connection::open(&db_path).map_err(|e| e.to_string())?;
+
+    // Check if the path is active before deleting
+    let mut stmt = db.prepare("SELECT is_active FROM ContentPaths WHERE id = ?1").map_err(|e| e.to_string())?;
+    let is_active: bool = stmt.query_row(params![id], |row| row.get(0)).map_err(|e| e.to_string())?;
+
+    if is_active {
+        return Err("Cannot delete the active content path.".to_string());
+    }
+
+    let deleted_rows = db.execute(
+        "DELETE FROM ContentPaths WHERE id = ?1",
+        params![id],
+    ).map_err(|e| e.to_string())?;
+
+    if deleted_rows == 0 {
+        return Err(format!("Content path with id {} not found.", id));
+    }
+
+    Ok(())
 } 

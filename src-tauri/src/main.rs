@@ -25,7 +25,8 @@ fn main() {
             content::get_content_paths,
             content::set_active_content_path,
             content::get_active_content_path,
-            content::list_directories_in_path
+            content::list_directories_in_path,
+            content::delete_content_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -29,10 +29,9 @@ function HomePage() {
       }
     };
 
-    // Check content path status for all users
     checkContentPath();
 
-  }, []); // Run only once on mount
+  }, []);
 
   useEffect(() => {
     const fetchDirectories = async () => {
@@ -54,13 +53,11 @@ function HomePage() {
         }
     };
 
-    // Fetch directories if an active content path is set (for any user)
     if (hasActiveContentPath) {
         fetchDirectories();
     }
-  }, [hasActiveContentPath]); // Rerun when hasActiveContentPath changes
+  }, [hasActiveContentPath]);
 
-  // Keep this loading check only for admin to avoid showing the "set content path" message prematurely
   if (userRole === "admin" && loadingContentPath) {
     return <div>Loading content path status...</div>;
   }
@@ -73,7 +70,6 @@ function HomePage() {
       {/* Main content area for all users */}
       <div className={`flex-1 p-4 ${userRole === "admin" ? '' : 'ml-0'}`}> {/* Adjust margin if not admin */}
         {hasActiveContentPath ? (
-          /* Content display when an active path is set */
           <div className="flex-1 p-4">
               <h1 className="text-3xl font-bold mb-4">Content Area</h1>
               {loadingDirectories ? (
@@ -94,7 +90,6 @@ function HomePage() {
               )}
           </div>
         ) : (userRole === "admin" ? (
-          /* Admin message to set content path if none is active */
           <div className="flex-1 flex flex-col items-center justify-center p-4">
             <h1 className="text-2xl font-bold mb-4 text-center">
               No active content path set
@@ -110,7 +105,6 @@ function HomePage() {
             </button>
           </div>
         ) : (
-          /* Message for non-admin users when no content path is active */
           <div className="flex-1 flex flex-col items-center justify-center p-4">
             <h1 className="text-3xl font-bold mb-4">Welcome to the Home Page!</h1>
             <p className="text-lg mb-4">No content is available at the moment. Please contact your administrator.</p>
