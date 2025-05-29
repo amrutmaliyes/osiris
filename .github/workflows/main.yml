@@ -1,2 +1,34 @@
-- name: tauri-build
-  uses: JonasKruckenberg/tauri-build@tauri-build-v1.5.11
+name: Build Tauri App
+
+jobs:
+  build-windows:
+    runs-on: windows-latest # Use a Windows runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a Node.js version compatible with your project
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Add the Windows target for cross-compilation
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: npm install # Or yarn install, pnpm install depending on your package manager
+
+      - name: Build Tauri app for Windows
+        run: npx tauri build --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows-build
+          # The path where Tauri places the built executable (adjust if necessary)
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/
+          # Optionally, specify the exact file pattern if needed, e.g., path: src-tauri/target/x86_64-pc-windows-msvc/release/*.exe
