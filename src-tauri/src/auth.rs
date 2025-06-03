@@ -98,7 +98,7 @@ pub async fn perform_new_activation(form_data: NewActivationData) -> Result<Stri
     request_body.insert("product_key", product_key_clone.clone());
     request_body.insert("mac_id", mac_id.clone());
     // TODO: Implement logic to get a unique device_id if required by the backend
-    request_body.insert("device_id", "PLACEHOLDER_DEVICE_ID".to_string());
+    request_body.insert("device_id", mac_id.clone());
 
     println!("API Request URL: {}", api_url);
     println!("API Request Body: {:?}", request_body);
