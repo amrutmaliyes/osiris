@@ -6,13 +6,15 @@ use cbc::cipher::{KeyIvInit, BlockDecryptMut};
 use sha2::{Sha256, Digest};
 use aes::cipher::generic_array::GenericArray;
 use std::env;
+use log::{info, error};
 
 type Aes256Cbc = cbc::Decryptor<Aes256>;
 
 #[tauri::command]
 pub async fn decrypt_file(file_path: String) -> Result<String, String> {
-    println!("Decrypting file: {}", file_path);
+    info!("Decrypting file: {}", file_path);
     if file_path.is_empty() {
+        error!("File path is required for decryption.");
         return Err("File path is required.".into());
     }
 
@@ -23,23 +25,33 @@ pub async fn decrypt_file(file_path: String) -> Result<String, String> {
     let secret_key = hasher.finalize();
 
     // Read the input file
-    let mut input_file = File::open(&file_path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut input_file = File::open(&file_path).map_err(|e| {
+        error!("Failed to open file {}: {}", file_path, e);
+        format!("Failed to open file: {}", e)
+    })?;
     let mut input_data = Vec::new();
-    input_file.read_to_end(&mut input_data).map_err(|e| format!("Failed to read file: {}", e))?;
+    input_file.read_to_end(&mut input_data).map_err(|e| {
+        error!("Failed to read file {}: {}", file_path, e);
+        format!("Failed to read file: {}", e)
+    })?;
 
-    println!("File size: {} bytes", input_data.len());
+    info!("File size: {} bytes", input_data.len());
 
     // Extract IV from the beginning of the encrypted data
     if input_data.len() < 16 {
+        error!("Invalid encrypted file format: file too small ({} bytes)", input_data.len());
         return Err(format!("Invalid encrypted file format: file too small ({} bytes)", input_data.len()));
     }
     let (iv, ciphertext) = input_data.split_at(16);
-    println!("IV: {:?}", iv);
-    println!("Ciphertext length: {} bytes", ciphertext.len());
+    info!("IV: {:?}", iv);
+    info!("Ciphertext length: {} bytes", ciphertext.len());
 
     // Create decipher
     let mut cipher = Aes256Cbc::new_from_slices(&secret_key, iv)
-        .map_err(|e| format!("Failed to create decipher: {:?}", e))?;
+        .map_err(|e| {
+            error!("Failed to create decipher: {:?}", e);
+            format!("Failed to create decipher: {:?}", e)
+        })?;
 
     // Decrypt the data
     let mut decrypted_data = Vec::new();
@@ -61,19 +73,15 @@ pub async fn decrypt_file(file_path: String) -> Result<String, String> {
         }
     }
 
-    // Remove PKCS7 padding
-    if let Some(&padding) = decrypted_data.last() {
-        if padding as usize <= decrypted_data.len() {
-            decrypted_data.truncate(decrypted_data.len() - padding as usize);
-        }
-    }
-
-    println!("Decryption successful, writing {} bytes", decrypted_data.len());
+    info!("Decryption successful, writing {} bytes", decrypted_data.len());
 
     // Get the original filename
     let original_path = PathBuf::from(&file_path);
     let filename = original_path.file_name()
-        .ok_or_else(|| "Invalid file path".to_string())?
+        .ok_or_else(|| {
+            error!("Invalid file path: Could not extract filename from {}", file_path);
+            "Invalid file path".to_string()
+        })?
         .to_string_lossy();
 
     // Create temp file path
@@ -81,9 +89,15 @@ pub async fn decrypt_file(file_path: String) -> Result<String, String> {
     let temp_file_path = temp_dir.join(format!("decrypted_{}", filename));
 
     // Write the decrypted data to temp file
-    let mut output_file = File::create(&temp_file_path).map_err(|e| format!("Failed to create output file: {}", e))?;
-    output_file.write_all(&decrypted_data).map_err(|e| format!("Failed to write decrypted data: {}", e))?;
+    let mut output_file = File::create(&temp_file_path).map_err(|e| {
+        error!("Failed to create output file {}: {}", temp_file_path.display(), e);
+        format!("Failed to create output file: {}", e)
+    })?;
+    output_file.write_all(&decrypted_data).map_err(|e| {
+        error!("Failed to write decrypted data to {}: {}", temp_file_path.display(), e);
+        format!("Failed to write decrypted data: {}", e)
+    })?;
 
-    println!("File decrypted successfully to: {}", temp_file_path.display());
+    info!("File decrypted successfully to: {}", temp_file_path.display());
     Ok(temp_file_path.to_string_lossy().into_owned())
 } 

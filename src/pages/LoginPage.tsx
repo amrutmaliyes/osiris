@@ -22,12 +22,13 @@ function LoginPage() {
     setError("");
 
     try {
-      const userRole = (await invoke("perform_login", {
+      const loginResponse = (await invoke("perform_login", {
         credentials: { email, password } as LoginCredentials,
-      })) as string;
-      console.log("Login successful, user role:", userRole);
-      if (userRole) {
-        setUserRole(userRole);
+      })) as { username: string; role: string };
+
+      console.log("Login successful, response:", loginResponse);
+      if (loginResponse && loginResponse.role) {
+        setUserRole(loginResponse.role);
         navigate("/home");
       } else {
         setError("Login failed: Could not retrieve user role.");
