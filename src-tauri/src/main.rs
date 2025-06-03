@@ -6,14 +6,34 @@ mod content;
 mod db;
 mod encryption;
 
+use log::{error, LevelFilter};
+use tauri_plugin_log::{Target, TargetKind, RotationStrategy, TimezoneStrategy};
+
 fn main() {
     if let Err(e) = db::initialize_db() {
-        eprintln!("Failed to initialize database: {}", e);
+        error!("Failed to initialize database: {}", e);
         return;
     }
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .format(move |out, message, record| {
+                    let log_message = format!("{}: [{}] {}", record.level(), record.target(), message);
+                    out.finish(format_args!(
+                        "[{}] {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        log_message
+                    ));
+                })
+                .level(LevelFilter::Trace)
+                .rotation_strategy(RotationStrategy::KeepAll)
+                .max_file_size(50_000)
+                .timezone_strategy(TimezoneStrategy::UseLocal)
+                .target(Target::new(TargetKind::LogDir { file_name: None }))
+                .target(Target::new(TargetKind::Stdout))
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             db::has_activation,
             auth::get_mac_address,
