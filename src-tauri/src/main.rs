@@ -4,6 +4,7 @@
 mod auth;
 mod content;
 mod db;
+mod encryption;
 
 fn main() {
     if let Err(e) = db::initialize_db() {
@@ -27,7 +28,8 @@ fn main() {
             content::get_active_content_path,
             content::list_directories_in_path,
             content::delete_content_path,
-            content::open_file_in_system
+            content::open_file_in_system,
+            encryption::decrypt_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
