@@ -11,6 +11,7 @@ function HomePage() {
   const [hasActiveContentPath, setHasActiveContentPath] = useState<boolean>(false);
   const [loadingContentPath, setLoadingContentPath] = useState<boolean>(true);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
 
   const handleAddContentPathClick = () => {
     navigate("/content");
@@ -22,33 +23,32 @@ function HomePage() {
 
   const handleBack = () => {
     if (currentPath && initialActivePath) {
-      // Ensure we don't navigate above the initial active path
       if (currentPath === initialActivePath) {
-        // Already at the root of the active path, do nothing or handle as needed
         return;
       }
 
       const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
 
-      // If the parent path is the same as the initial active path or deeper within it,
-      // set the current path to the parent path.
       if (initialActivePath.startsWith(parentPath) || parentPath.startsWith(initialActivePath)) {
-           setCurrentPath(parentPath || initialActivePath); // Go back or to active root if parent is empty
+           setCurrentPath(parentPath || initialActivePath);
       } else {
-           // This case should ideally not be reached with correct navigation, 
-           // but as a fallback, navigate to the initial active path.
            setCurrentPath(initialActivePath);
       }
     }
   };
 
-  const handleOpenFile = async (filePath: string) => {
-    console.log("Attempting to open file:", filePath);
+  const handleOpenFile = async (file: string) => {
+    console.log("Attempting to open file:", file);
+    setIsDecrypting(true);
     try {
-        await invoke('open_file_in_system', { path: filePath });
+        const filePath = file;
+        const decryptedFilePath = await invoke('decrypt_file', { filePath });
+        console.log("Decrypted file path:", decryptedFilePath);
+        await invoke('open_file_in_system', { path: decryptedFilePath });
     } catch (error) {
-        console.error("Error opening file:", error);
-        // Optionally show an error message to the user
+        console.error("Error processing file:", error);
+    } finally {
+      setIsDecrypting(false);
     }
   };
 
@@ -62,8 +62,8 @@ function HomePage() {
 
         if (hasPath) {
           const activePath = await invoke("get_active_content_path") as string | null;
-          setInitialActivePath(activePath); // Store initial active path
-          setCurrentPath(activePath); // Set initial current path for browsing
+          setInitialActivePath(activePath);
+          setCurrentPath(activePath);
         } else {
           setInitialActivePath(null);
           setCurrentPath(null);
@@ -109,7 +109,7 @@ function HomePage() {
                 currentPath={currentPath}
                 onNavigate={handleNavigate}
                 onOpenFile={handleOpenFile}
-                initialActivePath={initialActivePath} // Pass initialActivePath
+                initialActivePath={initialActivePath}
               />
             )}
           </div>
@@ -134,6 +134,13 @@ function HomePage() {
             <p className="text-lg mb-4">No content is available at the moment. Please contact your administrator.</p>
           </div>
         ))}
+
+        {isDecrypting && (
+          <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-orange-500"></div>
+            <div className="text-white mt-4 text-xl">Loading...</div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -56,7 +56,7 @@ function AdminSidebar() {
           </svg>
           Content
         </Link>
-        <Link
+        {/* <Link
           to="/support"
           className="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
         >
@@ -124,7 +124,7 @@ function AdminSidebar() {
             />
           </svg>
           Users
-        </Link>
+        </Link> */}
       </nav>
       <div className="mt-auto px-4 py-4 border-t border-gray-700">
         <button
