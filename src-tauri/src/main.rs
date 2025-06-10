@@ -34,6 +34,7 @@ fn main() {
                 .target(Target::new(TargetKind::Stdout))
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             db::has_activation,
             auth::get_mac_address,
