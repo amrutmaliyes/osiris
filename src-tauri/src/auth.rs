@@ -68,10 +68,8 @@ struct ApiCredentials {
 // Struct to match the successful API response structure for Reactivation (assuming it returns updated dates)
 #[derive(Debug, Deserialize)]
 struct ReactivationApiResponse {
-     message: String,
-     #[serde(rename = "productKey")] // Assuming similar structure to new activation
-     product_key_details: ApiProductKeyDetails, // Reusing the struct if structure is the same
-     // Add other fields if returned by reactivation API
+    status: String,
+    expiry_date: String,
 }
 
 #[tauri::command]
@@ -227,17 +225,13 @@ pub async fn perform_reactivation(activation_key: String) -> Result<String, Stri
     let mac_id = get_mac_address().await?;
 
     // 2. Call backend API to verify key and MAC ID
-    let api_url = "http://iactiveapi.lattech.in/api/devices/reactivate"; // Assuming reactivation endpoint
-    let mut request_body = HashMap::new();
-    request_body.insert("activation_key", activation_key.clone());
-    request_body.insert("mac_id", mac_id.clone());
+    let api_url = format!("http://iactiveapi.lattech.in/api/devices/check-renew/{}", mac_id);
+    // Remove request_body as it's not needed for GET
 
     info!("Reactivation API Request URL: {}", api_url);
-    info!("Reactivation API Request Body: {:?}", request_body);
 
     let client = reqwest::Client::new();
-    let response = client.post(api_url)
-        .json(&request_body)
+    let response = client.get(&api_url)
         .send()
         .await
         .map_err(|e| {
@@ -280,7 +274,7 @@ pub async fn perform_reactivation(activation_key: String) -> Result<String, Stri
     })?;
 
     // Parse expiry date from API response and format for DB
-    let expiry_datetime = DateTime::parse_from_rfc3339(&api_response.product_key_details.expiry_date)
+    let expiry_datetime = DateTime::parse_from_rfc3339(&api_response.expiry_date)
         .map_err(|e| {
             error!("Failed to parse API expiry date for reactivation: {}", e);
             format!("Failed to parse API expiry date: {}", e)
@@ -307,7 +301,7 @@ pub async fn perform_reactivation(activation_key: String) -> Result<String, Stri
 
     info!("Reactivation successful.");
     // 5. Return success message from API
-    Ok(api_response.message)
+    Ok(api_response.status)
 }
 
 #[tauri::command]
