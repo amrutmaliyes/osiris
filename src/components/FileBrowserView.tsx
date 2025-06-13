@@ -62,7 +62,7 @@ const FileBrowserView: React.FC<FileBrowserViewProps> = ({ entries, selectedTab,
                             <span className="flex-shrink-0 text-gray-600 mr-4">
                                 {getFileIcon(entry.name)}
                             </span>
-                            <p className="flex-grow text-xl font-semibold text-gray-800 break-all">{entry.name}</p>
+                            <p className="flex-grow text-xl font-semibold text-gray-800 break-all">{entry.name.toUpperCase()}</p>
                             {(selectedTab === 'Videos' || selectedTab === 'Animations') && entry.name.toLowerCase().endsWith('.mp4') && (
                                 <button
                                     className="ml-auto bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-base shadow"
