@@ -158,10 +158,10 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                     {entries.map(entry => (
                         <div
                             key={entry.name}
-                            className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
+                            className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-2 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
                             onClick={() => handleItemClick(entry)}
                         >
-                            <img src={getImage(entry)} alt={entry.name} className="w-36 h-36 object-cover rounded-md" />
+                            <img src={getImage(entry)} alt={entry.name} className="h-40 object-cover rounded-md" />
                             <p className="mt-2 text-lg font-medium text-gray-700 text-center break-all">{entry.name}</p>
                         </div>
                     ))}
