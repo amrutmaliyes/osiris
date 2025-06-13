@@ -32,22 +32,46 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                 if (allItems.some(entry => !entry.isDirectory)) {
                     switch (selectedTab) {
                         case 'Videos':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.mp4') && !entry.name.toLowerCase().includes('animation'));
+                            filteredItems = allItems.filter(entry =>
+                                !entry.isDirectory &&
+                                entry.name.toLowerCase().endsWith('.mp4') &&
+                                !entry.name.toLowerCase().includes('animation')
+                            );
                             break;
                         case 'Animations':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.mp4') && entry.name.toLowerCase().includes('animation'));
+                            filteredItems = allItems.filter(entry =>
+                                !entry.isDirectory &&
+                                entry.name.toLowerCase().endsWith('.mp4') &&
+                                entry.name.toLowerCase().includes('animation')
+                            ).map(entry => ({
+                                ...entry,
+                                name: entry.name.toLowerCase().replace(/\s?animation\s?/gi, '').trim(),
+                            }));
                             break;
                         case 'Notes':
                             filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.pdf') && !entry.name.toLowerCase().includes('textbook'));
                             break;
                         case 'Textbooks':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.pdf') && entry.name.toLowerCase().includes('textbook'));
+                            filteredItems = allItems.filter(entry =>
+                                !entry.isDirectory &&
+                                entry.name.toLowerCase().endsWith('.pdf') &&
+                                entry.name.toLowerCase().includes('textbook')
+                            ).map(entry => ({
+                                ...entry,
+                                name: entry.name.toLowerCase().replace(/\s?textbook\s?/gi, '').trim(),
+                            }));
                             break;
                         case 'Quiz':
                             filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.xml'));
                             break;
                         case 'Activities':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().includes('activity'));
+                            filteredItems = allItems.filter(entry =>
+                                !entry.isDirectory &&
+                                entry.name.toLowerCase().includes('activity')
+                            ).map(entry => ({
+                                ...entry,
+                                name: entry.name.toLowerCase().replace(/\s?activity\s?/gi, '').trim(),
+                            }));
                             break;
                         case 'Assessments':
                             filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().includes('assessment'));
@@ -137,11 +161,7 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                             className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
                             onClick={() => handleItemClick(entry)}
                         >
-                            {entry.isDirectory ? (
-                                <img src={getImage(entry)} alt={entry.name} className="w-12 h-12 object-cover rounded-md" />
-                            ) : (
-                                <img src={getImage(entry)} alt={entry.name} className="w-12 h-12 object-cover rounded-md" />
-                            )}
+                            <img src={getImage(entry)} alt={entry.name} className="w-36 h-36 object-cover rounded-md" />
                             <p className="mt-2 text-lg font-medium text-gray-700 text-center break-all">{entry.name}</p>
                         </div>
                     ))}
