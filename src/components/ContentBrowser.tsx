@@ -162,7 +162,7 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                             onClick={() => handleItemClick(entry)}
                         >
                             <img src={getImage(entry)} alt={entry.name} className="h-40 object-cover rounded-md" />
-                            <p className="mt-2 text-lg font-medium text-gray-700 text-center break-all">{entry.name}</p>
+                            <p className="mt-2 text-lg font-medium text-gray-700 text-center break-all">{entry.name.toUpperCase()}</p>
                         </div>
                     ))}
                 </div>
