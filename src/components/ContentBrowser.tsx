@@ -60,7 +60,10 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                             !file.name.toLowerCase().includes('textbook') &&
                             !file.name.toLowerCase().includes('assessment') &&
                             !file.name.toLowerCase().includes('activities'),
-                    );
+                    ).map(file => ({
+                        ...file,
+                        originalName: file.name,
+                    }));
 
                     const videoExtensions = ['mp4', 'mov', 'webm', 'm4v'];
                     const allVideos = contentFiles.filter(file =>
@@ -91,7 +94,18 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                     filteredItems = contentMap[selectedTab] || contentMap['default'];
 
                 } else {
-                    filteredItems = allItems;
+                    filteredItems = allItems.sort((a, b) => {
+                        const nameA = a.name.toLowerCase().replace(/\s/g, '');
+                        const nameB = b.name.toLowerCase().replace(/\s/g, '');
+
+                        if (nameA === 'prenursery') return -1;
+                        if (nameB === 'prenursery') return 1;
+
+                        const numA = parseInt(nameA.replace('class', ''), 10);
+                        const numB = parseInt(nameB.replace('class', ''), 10);
+
+                        return numA - numB;
+                    });
                 }
                 setEntries(filteredItems);
             } catch (err: any) {
@@ -108,7 +122,7 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
     }, [currentPath, selectedTab]);
 
     const handleItemClick = (entry: FileEntry) => {
-        const itemPath = `${currentPath}/${entry.name}`.replace(/\/+/g, '/');
+        const itemPath = `${currentPath}/${entry.originalName || entry.name}`.replace(/\/+/g, '/');
 
         if (entry.isDirectory) {
             onNavigate(itemPath);
@@ -137,6 +151,8 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
         if (relativeLevel === 0) {
             return getClassImage(entry.name) || getGenericFolderImage();
         } else if (relativeLevel === 1) {
+            return getSubjectImage(entry.name);
+        } else if (relativeLevel === 2) {
             return getSubjectImage(entry.name);
         } else {
             return getGenericFolderImage();
@@ -171,7 +187,7 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                             className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-2 cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out"
                             onClick={() => handleItemClick(entry)}
                         >
-                            <img src={getImage(entry)} alt={entry.name} className="h-40 object-cover rounded-md" />
+                            <img src={getImage(entry)} alt={entry.name} className="h-30 object-cover rounded-md" />
                             <p className="mt-2 text-lg font-medium text-gray-700 text-center break-all">{entry.name.toUpperCase()}</p>
                         </div>
                     ))}

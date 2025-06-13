@@ -57,18 +57,30 @@ const FileBrowserView: React.FC<FileBrowserViewProps> = ({ entries, selectedTab,
                         <div
                             key={entry.name}
                             className="flex items-center p-5 bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-102 transition duration-200 ease-in-out border border-gray-200"
-                            onClick={() => onOpenFile(`${currentPath}/${entry.name}`.replace(/\/+/g, '/'))}
+                            onClick={() => onOpenFile(`${currentPath}/${entry.originalName || entry.name}`.replace(/\/+/g, '/'))}
                         >
                             <span className="flex-shrink-0 text-gray-600 mr-4">
                                 {getFileIcon(entry.name)}
                             </span>
-                            <p className="flex-grow text-xl font-semibold text-gray-800 break-all">{entry.name}</p>
+                            <p className="flex-grow text-xl font-semibold text-gray-800 break-all">{
+                                (() => {
+                                    let displayName = entry.name;
+                                    const extensionsToRemove = ['.mp4', '.pdf', '.xml'];
+                                    for (const ext of extensionsToRemove) {
+                                        if (displayName.toLowerCase().endsWith(ext)) {
+                                            displayName = displayName.slice(0, -ext.length);
+                                            break;
+                                        }
+                                    }
+                                    return displayName.toUpperCase();
+                                })()
+                            }</p>
                             {(selectedTab === 'Videos' || selectedTab === 'Animations') && entry.name.toLowerCase().endsWith('.mp4') && (
                                 <button
                                     className="ml-auto bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-base shadow"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onOpenFile(`${currentPath}/${entry.name}`.replace(/\/+/g, '/'));
+                                        onOpenFile(`${currentPath}/${entry.originalName || entry.name}`.replace(/\/+/g, '/'));
                                     }}
                                 >
                                     Play
@@ -79,7 +91,7 @@ const FileBrowserView: React.FC<FileBrowserViewProps> = ({ entries, selectedTab,
                                     className="ml-auto bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg text-base shadow"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onOpenFile(`${currentPath}/${entry.name}`.replace(/\/+/g, '/'));
+                                        onOpenFile(`${currentPath}/${entry.originalName || entry.name}`.replace(/\/+/g, '/'));
                                     }}
                                 >
                                     Open
