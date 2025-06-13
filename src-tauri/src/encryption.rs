@@ -135,7 +135,17 @@ pub async fn parse_xml_quiz(file_path: String) -> Result<serde_json::Value, Stri
         }
     };
 
-    let reader = EventReader::new(BufReader::new(contents.as_bytes()));
+    // Find the end of the </quiz> tag and truncate the content
+    let contents = if let Some(end_index) = contents.rfind("</quiz>") {
+        contents[..(end_index + "</quiz>".len())].to_string()
+    } else {
+        let error_message = format!("Invalid XML format: Missing </quiz> tag in {}", file_path);
+        error!("{}", error_message);
+        return Err(error_message);
+    };
+
+    info!("Contents: {}", contents);
+    let reader = EventReader::new(BufReader::new(contents.trim().as_bytes()));
     let mut quiz_data = QuizData::default();
     let mut current_question = Question::default();
     let mut parsing_options = false;
