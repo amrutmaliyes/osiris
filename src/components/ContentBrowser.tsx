@@ -30,56 +30,66 @@ const ContentBrowser: React.FC<ContentBrowserProps> = ({ currentPath, onNavigate
                 let filteredItems: FileEntry[] = [];
 
                 if (allItems.some(entry => !entry.isDirectory)) {
-                    switch (selectedTab) {
-                        case 'Videos':
-                            filteredItems = allItems.filter(entry =>
-                                !entry.isDirectory &&
-                                entry.name.toLowerCase().endsWith('.mp4') &&
-                                !entry.name.toLowerCase().includes('animation')
-                            );
-                            break;
-                        case 'Animations':
-                            filteredItems = allItems.filter(entry =>
-                                !entry.isDirectory &&
-                                entry.name.toLowerCase().endsWith('.mp4') &&
-                                entry.name.toLowerCase().includes('animation')
-                            ).map(entry => ({
-                                ...entry,
-                                name: entry.name.toLowerCase().replace(/\s?animation\s?/gi, '').trim(),
-                            }));
-                            break;
-                        case 'Notes':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.pdf') && !entry.name.toLowerCase().includes('textbook'));
-                            break;
-                        case 'Textbooks':
-                            filteredItems = allItems.filter(entry =>
-                                !entry.isDirectory &&
-                                entry.name.toLowerCase().endsWith('.pdf') &&
-                                entry.name.toLowerCase().includes('textbook')
-                            ).map(entry => ({
-                                ...entry,
-                                name: entry.name.toLowerCase().replace(/\s?textbook\s?/gi, '').trim(),
-                            }));
-                            break;
-                        case 'Quiz':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().endsWith('.xml'));
-                            break;
-                        case 'Activities':
-                            filteredItems = allItems.filter(entry =>
-                                !entry.isDirectory &&
-                                entry.name.toLowerCase().includes('activity')
-                            ).map(entry => ({
-                                ...entry,
-                                name: entry.name.toLowerCase().replace(/\s?activity\s?/gi, '').trim(),
-                            }));
-                            break;
-                        case 'Assessments':
-                            filteredItems = allItems.filter(entry => !entry.isDirectory && entry.name.toLowerCase().includes('assessment'));
-                            break;
-                        default:
-                            filteredItems = allItems.filter(entry => !entry.isDirectory);
-                            break;
-                    }
+                    const contentFiles = allItems.filter(entry => !entry.isDirectory);
+
+                    const allNotes = contentFiles.filter(file => file.name.toLowerCase().endsWith('.pdf'));
+                    const textbookNotes = allNotes.filter(file => file.name.toLowerCase().includes('textbook'));
+                    const assessmentNotes = allNotes.filter(file => file.name.toLowerCase().includes('assessment'));
+                    const activityNotes = allNotes.filter(file => file.name.toLowerCase().includes('activities'));
+
+                    const textbooks = textbookNotes.map(file => ({
+                        ...file,
+                        originalName: file.name,
+                        name: file.name.toLowerCase().replace(/\s?textbook\s?/gi, '').trim(),
+                    }));
+
+                    const assessments = assessmentNotes.map(file => ({
+                        ...file,
+                        originalName: file.name,
+                        name: file.name.toLowerCase().replace(/\s?assessment\s?/gi, '').trim(),
+                    }));
+
+                    const activities = activityNotes.map(file => ({
+                        ...file,
+                        originalName: file.name,
+                        name: file.name.toLowerCase().replace(/\s?activities\s?/gi, '').trim(),
+                    }));
+
+                    const notes = allNotes.filter(
+                        file =>
+                            !file.name.toLowerCase().includes('textbook') &&
+                            !file.name.toLowerCase().includes('assessment') &&
+                            !file.name.toLowerCase().includes('activities'),
+                    );
+
+                    const videoExtensions = ['mp4', 'mov', 'webm', 'm4v'];
+                    const allVideos = contentFiles.filter(file =>
+                        videoExtensions.includes(file.name.split('.').pop()!.toLowerCase()),
+                    );
+
+                    const animatedVideos = allVideos.filter(file => file.name.toLowerCase().includes('animated'));
+                    const animations = animatedVideos.map(file => ({
+                        ...file,
+                        originalName: file.name,
+                        name: file.name.toLowerCase().replace(/\s?animated\s?/gi, '').trim(),
+                    }));
+
+                    const videos = allVideos.filter(file => !file.name.toLowerCase().includes('animated'));
+                    const quiz = contentFiles.filter(file => file.name.toLowerCase().endsWith('.xml'));
+
+                    const contentMap: { [key: string]: FileEntry[] } = {
+                        'Videos': videos,
+                        'Animations': animations,
+                        'Notes': notes,
+                        'Textbooks': textbooks,
+                        'Quiz': quiz,
+                        'Activities': activities,
+                        'Assessments': assessments,
+                        'default': contentFiles,
+                    };
+
+                    filteredItems = contentMap[selectedTab] || contentMap['default'];
+
                 } else {
                     filteredItems = allItems;
                 }
