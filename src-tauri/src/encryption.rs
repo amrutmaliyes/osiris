@@ -7,6 +7,26 @@ use sha2::{Sha256, Digest};
 use aes::cipher::generic_array::GenericArray;
 use std::env;
 use log::{info, error};
+use tokio::fs;
+use serde_json::json;
+use serde::{Serialize, Deserialize};
+use xml::reader::{EventReader, XmlEvent};
+use std::io::BufReader;
+
+// Rust structs mirroring the frontend interfaces
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Question {
+    pub text: String,
+    pub options: Vec<String>,
+    #[serde(rename = "correctAnswer")]
+    pub correct_answer: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct QuizData {
+    pub questions: Vec<Question>,
+}
 
 type Aes256Cbc = cbc::Decryptor<Aes256>;
 
@@ -100,4 +120,69 @@ pub async fn decrypt_file(file_path: String) -> Result<String, String> {
 
     info!("File decrypted successfully to: {}", temp_file_path.display());
     Ok(temp_file_path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn parse_xml_quiz(file_path: String) -> Result<serde_json::Value, String> {
+    info!("Attempting to parse XML quiz from: {}", file_path);
+
+    let contents = match fs::read_to_string(&file_path).await {
+        Ok(content) => content,
+        Err(e) => {
+            let error_message = format!("Failed to read file {}: {}", file_path, e);
+            error!("{}", error_message);
+            return Err(error_message);
+        }
+    };
+
+    let reader = EventReader::new(BufReader::new(contents.as_bytes()));
+    let mut quiz_data = QuizData::default();
+    let mut current_question = Question::default();
+    let mut parsing_options = false;
+    let mut current_element = String::new();
+
+    for e in reader {
+        match e {
+            Ok(XmlEvent::StartElement { name, .. }) => {
+                current_element = name.local_name;
+                if current_element == "question" {
+                    current_question = Question::default();
+                } else if current_element == "options" {
+                    parsing_options = true;
+                }
+            }
+            Ok(XmlEvent::Characters(text)) => {
+                match current_element.as_str() {
+                    "text" => current_question.text = text,
+                    "option" if parsing_options => {
+                        if text != "-" {
+                            current_question.options.push(text);
+                        }
+                    }
+                    "correctAnswer" => current_question.correct_answer = text,
+                    "description" => {
+                        if text != "-" {
+                            current_question.description = Some(text);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            Ok(XmlEvent::EndElement { name }) => {
+                if name.local_name == "question" {
+                    quiz_data.questions.push(current_question.clone());
+                } else if name.local_name == "options" {
+                    parsing_options = false;
+                }
+            }
+            Err(e) => {
+                error!("Error parsing XML: {}", e);
+                return Err(format!("Error parsing XML: {}", e));
+            }
+            _ => (),
+        }
+    }
+
+    info!("Successfully parsed XML quiz with {} questions.", quiz_data.questions.len());
+    Ok(json!(quiz_data))
 } 

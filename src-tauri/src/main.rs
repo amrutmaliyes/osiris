@@ -50,7 +50,8 @@ fn main() {
             content::list_directories_in_path,
             content::delete_content_path,
             content::open_file_in_system,
-            encryption::decrypt_file
+            encryption::decrypt_file,
+            encryption::parse_xml_quiz
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
