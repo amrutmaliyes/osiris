@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "../assets/logo.svg";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface NewActivationFormData {
   institutionName: string;
@@ -14,6 +15,7 @@ interface NewActivationFormData {
 
 function NewActivationForm() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState<NewActivationFormData>({
     institutionName: "",
     headOfInstitution: "",
@@ -37,13 +39,13 @@ function NewActivationForm() {
       const result = await invoke("perform_new_activation", { formData });
 
       if (result) {
-        setSuccess(result as string);
+        setSuccess(t('application_activated_success'));
         console.log("Activation successful:", result);
         setTimeout(() => {
           navigate("/login");
         }, 2000);
       } else {
-        setError("Activation failed.");
+        setError(t('activation_failed'));
         console.error("Activation failed:", result);
       }
     } catch (err: any) {
@@ -60,24 +62,24 @@ function NewActivationForm() {
             to="/activation"
             className="inline-block text-blue-600 hover:text-blue-800 font-semibold py-1 px-2 rounded transition duration-300 ease-in-out transform hover:scale-105"
           >
-            &larr; Back
+            &larr; {t('back_button')}
           </Link>
         </div>
         <div className="flex justify-center mb-6">
           <img src={logo} alt="Osiris Logo" className="h-20" />
         </div>
-        <h2 className="text-xl font-semibold mb-4">Activation</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('activation_title')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="institutionName" className="sr-only">
-                Institution Name
+                {t('institution_name')}
               </label>
               <input
                 id="institutionName"
                 name="institutionName"
                 type="text"
-                placeholder="Institution Name"
+                placeholder={t('institution_name')}
                 value={formData.institutionName}
                 onChange={handleChange}
                 required
@@ -86,13 +88,13 @@ function NewActivationForm() {
             </div>
             <div>
               <label htmlFor="headOfInstitution" className="sr-only">
-                Head of Institution
+                {t('head_of_institution')}
               </label>
               <input
                 id="headOfInstitution"
                 name="headOfInstitution"
                 type="text"
-                placeholder="Head of Institution"
+                placeholder={t('head_of_institution')}
                 value={formData.headOfInstitution}
                 onChange={handleChange}
                 required
@@ -101,13 +103,13 @@ function NewActivationForm() {
             </div>
             <div>
               <label htmlFor="mobileNo" className="sr-only">
-                Mobile No
+                {t('mobile_no')}
               </label>
               <input
                 id="mobileNo"
                 name="mobileNo"
                 type="tel"
-                placeholder="Mobile No"
+                placeholder={t('mobile_no')}
                 value={formData.mobileNo}
                 onChange={handleChange}
                 required
@@ -116,13 +118,13 @@ function NewActivationForm() {
             </div>
             <div>
               <label htmlFor="serialNumber" className="sr-only">
-                Serial Number
+                {t('serial_number')}
               </label>
               <input
                 id="serialNumber"
                 name="serialNumber"
                 type="text"
-                placeholder="Serial Number"
+                placeholder={t('serial_number')}
                 value={formData.serialNumber}
                 onChange={handleChange}
                 required
@@ -131,13 +133,13 @@ function NewActivationForm() {
             </div>
             <div>
               <label htmlFor="productKey" className="sr-only">
-                Product Key
+                {t('product_key')}
               </label>
               <input
                 id="productKey"
                 name="productKey"
                 type="text"
-                placeholder="Product Key"
+                placeholder={t('product_key')}
                 value={formData.productKey}
                 onChange={handleChange}
                 required
@@ -149,7 +151,7 @@ function NewActivationForm() {
                 type="submit"
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transition duration-300 ease-in-out transform hover:scale-105"
               >
-                Activate
+                {t('activate')}
               </button>
             </div>
           </div>

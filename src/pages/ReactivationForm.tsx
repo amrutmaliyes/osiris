@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "../assets/logo.svg";
+import { useLanguage } from "../contexts/LanguageContext";
 
 function ReactivationForm() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activationKey, setActivationKey] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
@@ -19,13 +21,13 @@ function ReactivationForm() {
       const result = await invoke("perform_reactivation", { activationKey });
 
       if (result) {
-        setSuccess(result as string);
+        setSuccess(t('application_reactivated_success'));
         console.log("Reactivation successful:", result);
         setTimeout(() => {
           navigate("/login");
         }, 2000);
       } else {
-        setError("Reactivation failed.");
+        setError(t('reactivation_failed'));
         console.error("Reactivation failed:", result);
       }
     } catch (err: any) {
@@ -42,14 +44,14 @@ function ReactivationForm() {
             to="/activation"
             className="inline-block text-blue-600 hover:text-blue-800 font-semibold py-1 px-2 rounded transition duration-300 ease-in-out transform hover:scale-105"
           >
-            &larr; Back
+            &larr; {t('back_button')}
           </Link>
         </div>
         <div className="flex justify-center mb-6">
           <img src={logo} alt="Osiris Logo" className="h-20" />
         </div>
         <h2 className="text-center text-xl font-semibold text-gray-700 mb-6">
-          Activation / Reactivation
+          {t('activation_reactivation')}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -57,12 +59,12 @@ function ReactivationForm() {
               htmlFor="activationKey"
               className="block text-sm font-medium text-gray-700 sr-only"
             >
-              Activation Key
+              {t('activation_key')}
             </label>
             <input
               id="activationKey"
               type="text"
-              placeholder="Activation Key"
+              placeholder={t('activation_key')}
               value={activationKey}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setActivationKey(e.target.value)
@@ -76,7 +78,7 @@ function ReactivationForm() {
               type="submit"
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-300 ease-in-out transform hover:scale-105"
             >
-              Activate / Recheck
+              {t('activate_recheck')}
             </button>
           </div>
         </form>

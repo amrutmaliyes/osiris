@@ -5,6 +5,7 @@ mod auth;
 mod content;
 mod db;
 mod encryption;
+mod users;
 
 use log::{error, LevelFilter};
 use tauri_plugin_log::{Target, TargetKind, RotationStrategy, TimezoneStrategy};
@@ -51,7 +52,11 @@ fn main() {
             content::delete_content_path,
             content::open_file_in_system,
             encryption::decrypt_file,
-            encryption::parse_xml_quiz
+            encryption::parse_xml_quiz,
+            users::add_user,
+            users::get_users,
+            users::update_user,
+            users::delete_user
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
