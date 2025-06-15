@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Question {
   text: string;
@@ -19,6 +20,7 @@ interface QuizPageProps {
 
 function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
   const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const { t } = useLanguage();
   const [selectedAnswers, setSelectedAnswers] = useState<{
     [key: number]: number;
   }>({});
@@ -38,7 +40,7 @@ function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
   return (
     <div className="flex-1 p-4 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Quiz</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{t('quiz')}</h1>
         <button
           className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-150 ease-in-out"
           onClick={() => {
@@ -46,7 +48,7 @@ function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
             setSelectedAnswers({});
           }}
         >
-          Close
+          {t('close')}
         </button>
       </div>
 
@@ -119,8 +121,8 @@ function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
                 `}>
                 {question.options[selectedAnswers[index]] ===
                 question.correctAnswer
-                  ? 'Correct!'
-                  : `Incorrect. The correct answer is: ${question.correctAnswer}`}
+                  ? t('correct')
+                  : `${t('incorrect_answer_message')} ${question.correctAnswer}`}
               </p>
               <p className="text-sm text-gray-600 mt-2">
                 {question.description}
@@ -137,7 +139,7 @@ function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
           setSelectedAnswers({});
         }}
       >
-        Submit
+        {t('submit_answer')}
       </button>
 
       <button
@@ -147,7 +149,7 @@ function QuizPage({ isOpen, onClose, quizData: propQuizData }: QuizPageProps) {
           setSelectedAnswers({});
         }}
       >
-        Close
+        {t('close')}
       </button>
     </div>
   );

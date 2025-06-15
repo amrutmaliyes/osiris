@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "../assets/logo.svg";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface LoginCredentials {
   email: string;
@@ -12,6 +13,7 @@ interface LoginCredentials {
 function LoginPage() {
   const navigate = useNavigate();
   const { setUser, setUserRole } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -32,7 +34,7 @@ function LoginPage() {
         setUserRole(loginResponse.role);
         navigate("/home");
       } else {
-        setError("Login failed: Could not retrieve user role.");
+        setError(t('login_failed_role'));
       }
     } catch (err: any) {
       console.error("Login failed:", err);
@@ -46,16 +48,16 @@ function LoginPage() {
         <div className="flex justify-center mb-8">
           <img src={logo} alt="Osiris Logo" className="h-20" />
         </div>
-        <h2 className="text-xl font-semibold mb-4">Login</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('login')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="sr-only">
-              Username
+              {t('username')}
             </label>
             <input
               id="email"
               type="text"
-              placeholder="Username"
+              placeholder={t('username')}
               value={email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setEmail(e.target.value)
@@ -66,12 +68,12 @@ function LoginPage() {
           </div>
           <div className="relative">
             <label htmlFor="password" className="sr-only">
-              Password
+              {t('password')}
             </label>
             <input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              placeholder={t('password')}
               value={password}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setPassword(e.target.value)
@@ -132,7 +134,7 @@ function LoginPage() {
               type="submit"
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full"
             >
-              Login
+              {t('login')}
             </button>
           </div>
         </form>

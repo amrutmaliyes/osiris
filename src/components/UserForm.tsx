@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types'; // Import User from centralized types
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface UserFormProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('Admin');
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (initialData) {
@@ -28,7 +30,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      alert("Passwords do not match!");
+      alert(t('passwords_do_not_match'));
       return;
     }
 
@@ -59,12 +61,12 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
           &times;
         </button>
         <h2 className="text-2xl font-bold mb-6 text-gray-800">
-          {initialData ? 'Edit User' : 'Add New User'}
+          {initialData ? t('edit_user') : t('add_new_user_form')}
         </h2>
         <div className="">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">{t('name')} <span className="text-red-500">*</span></label>
               <div className="mt-1">
                 <input
                   type="text"
@@ -73,7 +75,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
                   autoComplete="name"
                   required
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2"
-                  placeholder="Enter name"
+                  placeholder={t('enter_name')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -81,7 +83,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">{t('password')} <span className="text-red-500">*</span></label>
               <div className="mt-1 relative">
                 <input
                   type="password"
@@ -90,7 +92,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
                   autoComplete="new-password"
                   required
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 pr-10"
-                  placeholder="Enter password"
+                  placeholder={t('enter_password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -99,7 +101,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
             </div>
 
             <div>
-              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">Confirm Password <span className="text-red-500">*</span></label>
+              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">{t('confirm_password')} <span className="text-red-500">*</span></label>
               <div className="mt-1 relative">
                 <input
                   type="password"
@@ -108,7 +110,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
                   autoComplete="new-password"
                   required
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 pr-10"
-                  placeholder="Re-enter password"
+                  placeholder={t('re_enter_password')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
@@ -117,7 +119,7 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
             </div>
 
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role <span className="text-red-500">*</span></label>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">{t('role')} <span className="text-red-500">*</span></label>
               <div className="mt-1">
                 <select
                   id="role"
@@ -128,8 +130,8 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >
-                  <option>Admin</option>
-                  <option>User</option>
+                  <option>{t('admin_role')}</option>
+                  <option>{t('user_role')}</option>
                 </select>
               </div>
             </div>
@@ -140,13 +142,13 @@ function UserForm({ isOpen, onClose, onSubmit, initialData }: UserFormProps) {
                 onClick={onClose}
                 className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="submit"
                 className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
               >
-                Submit
+                {t('submit')}
               </button>
             </div>
           </form>

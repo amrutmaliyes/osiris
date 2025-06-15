@@ -5,6 +5,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { invoke } from '@tauri-apps/api/core';
 import { User } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BackendUser {
   id?: number | null;
@@ -15,6 +16,7 @@ interface BackendUser {
 
 function Users() {
   const { userRole } = useAuth();
+  const { t } = useLanguage();
 
   const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -109,14 +111,14 @@ function Users() {
     <div className="flex min-h-screen bg-gray-100">
       {userRole === "admin" && <AdminSidebar />}
       <div className="flex flex-col flex-1 p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">User Management</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">{t('user_management')}</h1>
         
         <div className="flex justify-end mb-4">
           <button
             onClick={openAddUserModal}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           >
-            Add New User
+            {t('add_new_user')}
           </button>
         </div>
 

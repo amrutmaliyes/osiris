@@ -1,4 +1,5 @@
 import { User } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface UserListProps {
   users: User[];
@@ -7,6 +8,7 @@ interface UserListProps {
 }
 
 function UserList({ users, onEdit, onDelete }: UserListProps) {
+  const { t } = useLanguage();
   const handleEdit = (id: number | null) => {
     if (id !== null) {
       onEdit(id);
@@ -21,7 +23,7 @@ function UserList({ users, onEdit, onDelete }: UserListProps) {
 
   return (
     <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-      <h2 className="text-xl leading-6 font-medium text-gray-900 mb-4">Users</h2>
+      <h2 className="text-xl leading-6 font-medium text-gray-900 mb-4">{t('users')}</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -30,25 +32,25 @@ function UserList({ users, onEdit, onDelete }: UserListProps) {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                #
+                {t('id')}
               </th>
               <th
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Name
+                {t('name')}
               </th>
               <th
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Role
+                {t('role')}
               </th>
               <th
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Action
+                {t('actions')}
               </th>
             </tr>
           </thead>
