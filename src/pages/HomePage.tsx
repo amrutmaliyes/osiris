@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAuth } from "../contexts/AuthContext";
 import ContentBrowser from "../components/ContentBrowser";
 import QuizPage from "./QuizPage";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface Question {
   text: string;
@@ -20,6 +21,7 @@ interface QuizData {
 function HomePage() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
+  const { t } = useLanguage();
   const [hasActiveContentPath, setHasActiveContentPath] = useState<boolean>(false);
   const [loadingContentPath, setLoadingContentPath] = useState<boolean>(true);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
@@ -132,7 +134,7 @@ function HomePage() {
   }, []);
 
   if (userRole === "admin" && loadingContentPath) {
-    return <div>Loading content path status...</div>;
+    return <div>{t('loading_content_path_status')}</div>;
   }
 
   const isAtContentRoot = currentPath === initialActivePath && hasActiveContentPath;
@@ -156,14 +158,14 @@ function HomePage() {
         <div className={`flex-1 p-4 ${userRole === "admin" ? '' : 'ml-0'}`}>
           {hasActiveContentPath ? (
             <div className="flex-1 p-4">
-              <h1 className="text-3xl font-bold mb-4">Content Area</h1>
+              <h1 className="text-3xl font-bold mb-4">{t('content_area')}</h1>
 
               {!isAtContentRoot && currentPath !== null && (
                 <button
                   className="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-150 ease-in-out"
                   onClick={handleBack}
                 >
-                  Back
+                  {t('back')}
                 </button>
               )}
 
@@ -179,29 +181,29 @@ function HomePage() {
           ) : (userRole === "admin" ? (
             <div className="flex-1 flex flex-col items-center justify-center p-4">
               <h1 className="text-2xl font-bold mb-4 text-center">
-                No active content path set
+                {t('no_active_content_path_set')}
               </h1>
               <p className="text-lg mb-6 text-center">
-                Please set an active content path to access the content management features.
+                {t('set_active_content_path_message')}
               </p>
               <button
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 onClick={handleAddContentPathClick}
               >
-                Go to Content Path Settings
+                {t('go_to_content_path_settings')}
               </button>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <h1 className="text-3xl font-bold mb-4">Welcome to the Home Page!</h1>
-              <p className="text-lg mb-4">No content is available at the moment. Please contact your administrator.</p>
+              <h1 className="text-3xl font-bold mb-4">{t('welcome_to_home_page')}</h1>
+              <p className="text-lg mb-4">{t('no_content_available')}</p>
             </div>
           ))}
 
           {isDecrypting && (
             <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
               <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-orange-500"></div>
-              <div className="text-white mt-4 text-xl">Loading...</div>
+              <div className="text-white mt-4 text-xl">{t('loading')}</div>
             </div>
           )}
 

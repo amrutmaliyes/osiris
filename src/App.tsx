@@ -12,8 +12,12 @@ import NewActivationForm from "./pages/NewActivationForm";
 import ReactivationForm from "./pages/ReactivationForm";
 import HomePage from "./pages/HomePage";
 import ContentPathPage from "./pages/ContentPathPage";
+import Users from "./pages/Users";
+import SettingsPage from "./pages/SettingsPage";
 import { invoke } from "@tauri-apps/api/core";
 import { AuthProvider } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import AppHeader from "./components/AppHeader";
 
 function App() {
   const [initialRoute, setInitialRoute] = useState("/");
@@ -50,20 +54,25 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Navigate to={initialRoute} replace />} />
-          <Route path="/activation" element={<ActivationPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/new-activation" element={<NewActivationForm />} />
-          <Route path="/reactivation" element={<ReactivationForm />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/content" element={<ContentPathPage />} />
-          <Route path="*" element={<Navigate to={initialRoute} replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <Router>
+          <AppHeader />
+          <Routes>
+            <Route path="/" element={<Navigate to={initialRoute} replace />} />
+            <Route path="/activation" element={<ActivationPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/new-activation" element={<NewActivationForm />} />
+            <Route path="/reactivation" element={<ReactivationForm />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/content" element={<ContentPathPage />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to={initialRoute} replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
