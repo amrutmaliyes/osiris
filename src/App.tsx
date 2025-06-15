@@ -12,6 +12,7 @@ import NewActivationForm from "./pages/NewActivationForm";
 import ReactivationForm from "./pages/ReactivationForm";
 import HomePage from "./pages/HomePage";
 import ContentPathPage from "./pages/ContentPathPage";
+import Users from "./pages/Users";
 import { invoke } from "@tauri-apps/api/core";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -60,6 +61,7 @@ function App() {
           <Route path="/reactivation" element={<ReactivationForm />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/content" element={<ContentPathPage />} />
+          <Route path="/users" element={<Users />} />
           <Route path="*" element={<Navigate to={initialRoute} replace />} />
         </Routes>
       </Router>
