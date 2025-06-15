@@ -15,6 +15,7 @@ import ContentPathPage from "./pages/ContentPathPage";
 import Users from "./pages/Users";
 import { invoke } from "@tauri-apps/api/core";
 import { AuthProvider } from "./contexts/AuthContext";
+import AppHeader from "./components/AppHeader";
 
 function App() {
   const [initialRoute, setInitialRoute] = useState("/");
@@ -53,6 +54,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <AppHeader />
         <Routes>
           <Route path="/" element={<Navigate to={initialRoute} replace />} />
           <Route path="/activation" element={<ActivationPage />} />

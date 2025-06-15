@@ -11,7 +11,7 @@ interface LoginCredentials {
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { setUserRole } = useAuth();
+  const { setUser, setUserRole } = useAuth();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -28,6 +28,7 @@ function LoginPage() {
 
       console.log("Login successful, response:", loginResponse);
       if (loginResponse && loginResponse.role) {
+        setUser({ id: null, name: loginResponse.username, role: loginResponse.role });
         setUserRole(loginResponse.role);
         navigate("/home");
       } else {
