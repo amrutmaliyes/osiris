@@ -36,6 +36,8 @@ import economics from '../assets/economics.jpg';
 import socialscience from '../assets/socialscience.jpg';
 import democracy from '../assets/democracy.jpg';
 import environmentalstudies from '../assets/environmentalstudies.jpg';
+import english1 from '../assets/english1.jpg';
+import kannada1 from '../assets/kannada1.png';
 
 // Define a type for the images object
 interface ImageMap {
@@ -77,6 +79,8 @@ const images: ImageMap = {
   socialscience,
   democracy,
   environmentalstudies,
+  english1,
+  kannada1,
 };
 
 export const getClassImage = (className: string): string | null => {
@@ -121,6 +125,8 @@ export const getSubjectImage = (subjectName: string): string => {
   switch (normalizedSubjectName) {
     case 'english':
       return images.english;
+    case 'english1':
+      return images.english1;
     case 'maths':
     case 'ಗಣಿತ':
       return images.maths;
@@ -160,6 +166,8 @@ export const getSubjectImage = (subjectName: string): string => {
     case 'kannada':
     case 'ಕನ್ನಡ':
       return images.kannada;
+    case 'kannada1':
+      return images.kannada1;
     case 'hindi':
       return images.hindi;
     case 'politicalscience':
@@ -167,7 +175,7 @@ export const getSubjectImage = (subjectName: string): string => {
     case 'democraticpolitics':
     case 'socialandpoliticallife':
       return images.politicalscience;
-    case 'resourcesDevelopment':
+    case 'resourcesdevelopment':
       return images.resourcesDevelopment;
     case 'sociology':
     case 'ಸಮಾಜಶಾಸ್ತ್ರ':
