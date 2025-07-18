@@ -37,7 +37,9 @@ import socialscience from '../assets/socialscience.jpg';
 import democracy from '../assets/democracy.jpg';
 import environmentalstudies from '../assets/environmentalstudies.jpg';
 import english1 from '../assets/english1.jpg';
+import english2 from '../assets/english2.jpg';
 import kannada1 from '../assets/kannada1.png';
+import kannada2 from '../assets/kannada2.png';
 
 // Define a type for the images object
 interface ImageMap {
@@ -80,7 +82,9 @@ const images: ImageMap = {
   democracy,
   environmentalstudies,
   english1,
+  english2,
   kannada1,
+  kannada2,
 };
 
 export const getClassImage = (className: string): string | null => {
@@ -123,10 +127,10 @@ export const getSubjectImage = (subjectName: string): string => {
   // console.log(normalizedSubjectName);
 
   switch (normalizedSubjectName) {
-    case 'english':
-      return images.english;
     case 'english1':
       return images.english1;
+    case 'english2':
+      return images.english2;
     case 'maths':
     case 'ಗಣಿತ':
       return images.maths;
@@ -163,11 +167,12 @@ export const getSubjectImage = (subjectName: string): string => {
     case 'businessstudies':
     case 'ವ್ಯಾಪಾರಅಧ್ಯಯನ':
       return images.businessstudies;
-    case 'kannada':
-    case 'ಕನ್ನಡ':
-      return images.kannada;
     case 'kannada1':
+    case 'ಕನ್ನಡ1':
       return images.kannada1;
+    case 'kannada2':
+    case 'ಕನ್ನಡ2':
+      return images.kannada2;
     case 'hindi':
       return images.hindi;
     case 'politicalscience':
@@ -191,11 +196,11 @@ export const getSubjectImage = (subjectName: string): string => {
       return images.environmentalstudies;
     default:
       console.warn(`Image not found for subject name: ${subjectName}`);
-      return images.notebook; // Or a default image
+      return images.notebook;
   }
 };
 
-export const getGenericFolderImage = (): string => images.notebook; // Assuming notebook.jpg can be a generic folder image
+export const getGenericFolderImage = (): string => images.notebook;
 
 export const isFile = (fileName: string): boolean => {
     const fileExtension = fileName.split('.').pop()?.toLowerCase();

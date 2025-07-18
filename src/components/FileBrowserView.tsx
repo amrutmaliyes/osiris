@@ -9,7 +9,7 @@ interface FileBrowserViewProps {
     currentPath: string;
 }
 
-const tabs = [
+const allTabs = [
     { name: 'Videos', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14m-5 4v-4m0 0l-5-5m5 5l5-5" /></svg> },
     { name: 'Animations', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
     { name: 'Notes', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg> },
@@ -33,6 +33,13 @@ const getFileIcon = (fileName: string) => {
 };
 
 const FileBrowserView: React.FC<FileBrowserViewProps> = ({ entries, selectedTab, setSelectedTab, onOpenFile, currentPath }) => {
+    const shouldHideActivities = ['socialstudies', 'socialscience', 'ಸಮಾಜವಿಜ್ಞಾನ'].some(
+        folder => currentPath.toLowerCase().includes(folder.toLowerCase())
+    );
+    
+    const tabs = shouldHideActivities 
+        ? allTabs.filter(tab => tab.name !== 'Activities')
+        : allTabs;
     return (
         <div className="flex flex-col">
             <div className="grid grid-cols-7 gap-4 bg-white p-4 rounded-lg shadow mb-4">
