@@ -1,53 +1,53 @@
-import React, { useState } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
-import AdminSidebar from '../components/AdminSidebar';
+import { useState } from "react";
+import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../contexts/AuthContext";
+import AdminSidebar from "../components/AdminSidebar";
+import AppShell, { PageContent, SurfaceCard } from "../components/ui/AppShell";
+import Button from "../components/ui/Button";
 
 const SettingsPage = () => {
   const { language, setLanguage, t } = useLanguage();
   const { userRole } = useAuth();
   const [selectedLanguage, setSelectedLanguage] = useState(language);
 
-  const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedLanguage(event.target.value as 'en' | 'kn' | 'hi');
-  };
-
   const handleSave = () => {
     setLanguage(selectedLanguage);
-    alert('Settings saved!');
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {userRole === "admin" && <AdminSidebar />}
-      <div className="flex flex-col flex-1 items-center justify-center p-8">
-        <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">{t('settings')}</h2>
-          <div className="mb-4">
-            <label htmlFor="language-select" className="block text-gray-700 text-sm font-bold mb-2">
-              {t('select_language')}:
+    <AppShell sidebar={userRole === "admin" ? <AdminSidebar /> : undefined}>
+      <PageContent className="flex items-center justify-center">
+        <SurfaceCard className="w-full max-w-md">
+          <h2 className="mb-6 text-center text-2xl font-bold text-[var(--color-text)]">
+            {t("settings")}
+          </h2>
+          <div className="mb-6">
+            <label
+              htmlFor="language-select"
+              className="mb-2 block text-sm font-medium text-[var(--color-text-secondary)]"
+            >
+              {t("select_language")}:
             </label>
             <select
               id="language-select"
               value={selectedLanguage}
-              onChange={handleLanguageChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              onChange={(e) =>
+                setSelectedLanguage(e.target.value as "en" | "kn" | "hi")
+              }
+              className="h-14 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
             >
-              <option value="en">{t('english')}</option>
-              <option value="kn">{t('kannada')}</option>
-              <option value="hi">{t('hindi')}</option>
+              <option value="en">{t("english")}</option>
+              <option value="kn">{t("kannada")}</option>
+              <option value="hi">{t("hindi")}</option>
             </select>
           </div>
-          <button
-            onClick={handleSave}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-          >
-            {t('save')}
-          </button>
-        </div>
-      </div>
-    </div>
+          <Button onClick={handleSave} fullWidth>
+            {t("save")}
+          </Button>
+        </SurfaceCard>
+      </PageContent>
+    </AppShell>
   );
 };
 
-export default SettingsPage; 
+export default SettingsPage;

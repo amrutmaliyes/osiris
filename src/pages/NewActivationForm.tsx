@@ -1,9 +1,11 @@
-// src/pages/NewActivationForm.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
-import logo from "../assets/logo.svg";
 import { useLanguage } from "../contexts/LanguageContext";
+import AuthLayout from "../components/ui/AuthLayout";
+import Card from "../components/ui/Card";
+import InputField from "../components/ui/InputField";
+import Button from "../components/ui/Button";
 
 interface NewActivationFormData {
   institutionName: string;
@@ -23,8 +25,9 @@ function NewActivationForm() {
     serialNumber: "",
     productKey: "",
   });
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,139 +37,104 @@ function NewActivationForm() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setLoading(true);
 
     try {
       const result = await invoke("perform_new_activation", { formData });
 
       if (result) {
-        setSuccess(t('application_activated_success'));
-        console.log("Activation successful:", result);
-        setTimeout(() => {
-          navigate("/login");
-        }, 2000);
+        setSuccess(t("application_activated_success"));
+        setTimeout(() => navigate("/login"), 2000);
       } else {
-        setError(t('activation_failed'));
-        console.error("Activation failed:", result);
+        setError(t("activation_failed"));
       }
-    } catch (err: any) {
-      console.error("New activation failed:", err);
-      setError(err.toString());
+    } catch (err: unknown) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto mt-8 text-center min-h-screen flex items-center justify-center">
-      <div className="p-4 bg-white rounded-md shadow-xl w-full max-w-2xl">
-        <div className="text-left mb-4">
-          <Link
-            to="/activation"
-            className="inline-block text-blue-600 hover:text-blue-800 font-semibold py-1 px-2 rounded transition duration-300 ease-in-out transform hover:scale-105"
-          >
-            &larr; {t('back_button')}
-          </Link>
-        </div>
-        <div className="flex justify-center mb-6">
-          <img src={logo} alt="Osiris Logo" className="h-20" />
-        </div>
-        <h2 className="text-xl font-semibold mb-4">{t('activation_title')}</h2>
+    <AuthLayout
+      backLink={
+        <Link
+          to="/activation"
+          className="inline-flex items-center text-sm font-semibold text-[var(--color-primary)] hover:opacity-80"
+        >
+          &larr; {t("back_button")}
+        </Link>
+      }
+    >
+      <Card title={t("activation_title")}>
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="institutionName" className="sr-only">
-                {t('institution_name')}
-              </label>
-              <input
-                id="institutionName"
-                name="institutionName"
-                type="text"
-                placeholder={t('institution_name')}
-                value={formData.institutionName}
-                onChange={handleChange}
-                required
-                className="border border-gray-300 p-2 rounded w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="headOfInstitution" className="sr-only">
-                {t('head_of_institution')}
-              </label>
-              <input
-                id="headOfInstitution"
-                name="headOfInstitution"
-                type="text"
-                placeholder={t('head_of_institution')}
-                value={formData.headOfInstitution}
-                onChange={handleChange}
-                required
-                className="border border-gray-300 p-2 rounded w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="mobileNo" className="sr-only">
-                {t('mobile_no')}
-              </label>
-              <input
-                id="mobileNo"
-                name="mobileNo"
-                type="tel"
-                placeholder={t('mobile_no')}
-                value={formData.mobileNo}
-                onChange={handleChange}
-                required
-                className="border border-gray-300 p-2 rounded w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="serialNumber" className="sr-only">
-                {t('serial_number')}
-              </label>
-              <input
-                id="serialNumber"
-                name="serialNumber"
-                type="text"
-                placeholder={t('serial_number')}
-                value={formData.serialNumber}
-                onChange={handleChange}
-                required
-                className="border border-gray-300 p-2 rounded w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="productKey" className="sr-only">
-                {t('product_key')}
-              </label>
-              <input
-                id="productKey"
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <InputField
+              fieldSize="lg"
+              name="institutionName"
+              label={t("institution_name")}
+              placeholder={t("institution_name")}
+              value={formData.institutionName}
+              onChange={handleChange}
+              required
+            />
+            <InputField
+              fieldSize="lg"
+              name="headOfInstitution"
+              label={t("head_of_institution")}
+              placeholder={t("head_of_institution")}
+              value={formData.headOfInstitution}
+              onChange={handleChange}
+              required
+            />
+            <InputField
+              fieldSize="lg"
+              name="mobileNo"
+              type="tel"
+              label={t("mobile_no")}
+              placeholder={t("mobile_no")}
+              value={formData.mobileNo}
+              onChange={handleChange}
+              required
+            />
+            <InputField
+              fieldSize="lg"
+              name="serialNumber"
+              label={t("serial_number")}
+              placeholder={t("serial_number")}
+              value={formData.serialNumber}
+              onChange={handleChange}
+              required
+            />
+            <div className="md:col-span-2">
+              <InputField
+                fieldSize="lg"
                 name="productKey"
-                type="text"
-                placeholder={t('product_key')}
+                label={t("product_key")}
+                placeholder={t("product_key")}
                 value={formData.productKey}
                 onChange={handleChange}
                 required
-                className="border border-gray-300 p-2 rounded w-full"
               />
             </div>
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transition duration-300 ease-in-out transform hover:scale-105"
-              >
-                {t('activate')}
-              </button>
+          </div>
+          {(error || success) && (
+            <div
+              className={`mb-4 rounded-lg p-3 text-sm ${
+                error
+                  ? "bg-[var(--color-error)]/10 text-[var(--color-error)]"
+                  : "bg-[var(--color-success)]/10 text-[var(--color-success)]"
+              }`}
+            >
+              {error || success}
             </div>
-          </div>
+          )}
+          <Button type="submit" size="lg" fullWidth loading={loading} disabled={loading} className="mt-4">
+            {t("activate")}
+          </Button>
         </form>
-        {(!!error || !!success) && (
-          <div
-            className={`mt-4 p-3 rounded text-white ${
-              error ? "bg-red-500" : "bg-green-500"
-            }`}
-          >
-            {error || success}
-          </div>
-        )}
-      </div>
-    </div>
+      </Card>
+    </AuthLayout>
   );
 }
 
