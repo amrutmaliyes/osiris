@@ -6,6 +6,10 @@ import { useAuth } from "../contexts/AuthContext";
 import ContentBrowser from "../components/ContentBrowser";
 import QuizPage from "./QuizPage";
 import { useLanguage } from "../contexts/LanguageContext";
+import AppShell, { PageContent } from "../components/ui/AppShell";
+import WelcomeBanner from "../components/ui/WelcomeBanner";
+import LoadingOverlay from "../components/ui/LoadingOverlay";
+import Button from "../components/ui/Button";
 
 interface Question {
   text: string;
@@ -20,92 +24,66 @@ interface QuizData {
 
 function HomePage() {
   const navigate = useNavigate();
-  const { userRole } = useAuth();
+  const { user, userRole } = useAuth();
   const { t } = useLanguage();
-  const [hasActiveContentPath, setHasActiveContentPath] = useState<boolean>(false);
-  const [loadingContentPath, setLoadingContentPath] = useState<boolean>(true);
+  const [hasActiveContentPath, setHasActiveContentPath] = useState(false);
+  const [loadingContentPath, setLoadingContentPath] = useState(true);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
-  const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>('');
-  const [snackbarVisible, setSnackbarVisible] = useState<boolean>(false);
-  const [showQuiz, setShowQuiz] = useState<boolean>(false);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuizData, setCurrentQuizData] = useState<QuizData | null>(null);
+  const [initialActivePath, setInitialActivePath] = useState<string | null>(null);
 
-  const handleAddContentPathClick = () => {
-    navigate("/content");
-  };
+  const handleAddContentPathClick = () => navigate("/content");
 
-  const handleNavigate = (newPath: string) => {
-    setCurrentPath(newPath);
-  };
+  const handleNavigate = (newPath: string) => setCurrentPath(newPath);
 
   const handleBack = () => {
     if (currentPath && initialActivePath) {
-      if (currentPath === initialActivePath) {
-        return;
-      }
-
-      const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-
-      if (initialActivePath.startsWith(parentPath) || parentPath.startsWith(initialActivePath)) {
-           setCurrentPath(parentPath || initialActivePath);
+      if (currentPath === initialActivePath) return;
+      const parentPath = currentPath.substring(0, currentPath.lastIndexOf("/"));
+      if (
+        initialActivePath.startsWith(parentPath) ||
+        parentPath.startsWith(initialActivePath)
+      ) {
+        setCurrentPath(parentPath || initialActivePath);
       } else {
-           setCurrentPath(initialActivePath);
+        setCurrentPath(initialActivePath);
       }
     }
   };
 
   const handleOpenFile = async (file: string) => {
-    console.log("Attempting to open file:", file);
     setIsDecrypting(true);
     setSnackbarVisible(false);
 
     try {
-        const filePath = file;
-        const extension = filePath.split('.').pop()?.toLowerCase();
+      const extension = file.split(".").pop()?.toLowerCase();
 
-        if (extension === 'xml') {
-            const decryptedFilePath = await invoke('decrypt_file', { filePath });
-            console.log("Decrypted file path for XML:", decryptedFilePath);
-
-            let quizDataFromRust: any = null;
-            try {
-                quizDataFromRust = await invoke<any>('parse_xml_quiz', { filePath: decryptedFilePath });
-                console.log('DEBUG: quizDataFromRust after invoke (stringify):', JSON.stringify(quizDataFromRust));
-                console.log('DEBUG: quizDataFromRust after invoke (direct):', quizDataFromRust);
-            } catch (parseError) {
-                console.error("Error parsing XML quiz in Rust:", parseError);
-                setSnackbarMessage(`Failed to parse XML content: ${parseError}`);
-                setSnackbarVisible(true);
-                setIsDecrypting(false);
-                return;
-            }
-
-            const questions = Array.isArray(quizDataFromRust?.questions)
-                ? quizDataFromRust.questions
-                : [];
-
-            console.log('--------6 Formatted Questions from Rust:', questions);
-            console.log('DEBUG: Navigating with state - quizData:', { questions: questions }, 'returnPath:', currentPath);
-            
-            setCurrentQuizData({ questions: questions });
-            setShowQuiz(true);
-
-        } else {
-            const decryptedFilePath = await invoke('decrypt_file', { filePath });
-            console.log("Decrypted file path:", decryptedFilePath);
-            await invoke('open_file_in_system', { path: decryptedFilePath });
-        }
+      if (extension === "xml") {
+        const decryptedFilePath = await invoke("decrypt_file", { filePath: file });
+        const quizDataFromRust = await invoke<{ questions: Question[] }>(
+          "parse_xml_quiz",
+          { filePath: decryptedFilePath }
+        );
+        const questions = Array.isArray(quizDataFromRust?.questions)
+          ? quizDataFromRust.questions
+          : [];
+        setCurrentQuizData({ questions });
+        setShowQuiz(true);
+      } else {
+        const decryptedFilePath = await invoke("decrypt_file", { filePath: file });
+        await invoke("open_file_in_system", { path: decryptedFilePath });
+      }
     } catch (error) {
-        console.error("Error processing file:", error);
-        setSnackbarMessage(`Error: ${error}`);
-        setSnackbarVisible(true);
+      setSnackbarMessage(`Error: ${error}`);
+      setSnackbarVisible(true);
     } finally {
       setIsDecrypting(false);
     }
   };
-
-  const [initialActivePath, setInitialActivePath] = useState<string | null>(null);
 
   useEffect(() => {
     const checkContentPath = async () => {
@@ -114,14 +92,15 @@ function HomePage() {
         setHasActiveContentPath(hasPath);
 
         if (hasPath) {
-          const activePath = await invoke("get_active_content_path") as string | null;
+          const activePath = (await invoke("get_active_content_path")) as
+            | string
+            | null;
           setInitialActivePath(activePath);
           setCurrentPath(activePath);
         } else {
           setInitialActivePath(null);
           setCurrentPath(null);
         }
-
       } catch (error) {
         console.error("Error checking content path:", error);
       } finally {
@@ -130,91 +109,77 @@ function HomePage() {
     };
 
     checkContentPath();
-
   }, []);
 
   if (userRole === "admin" && loadingContentPath) {
-    return <div>{t('loading_content_path_status')}</div>;
+    return <LoadingOverlay message={t("loading_content_path_status")} />;
   }
 
-  const isAtContentRoot = currentPath === initialActivePath && hasActiveContentPath;
+  const isAtContentRoot =
+    currentPath === initialActivePath && hasActiveContentPath;
 
   const onCloseQuiz = () => {
     setShowQuiz(false);
     setCurrentQuizData(null);
   };
 
-  return (
-    <div className="flex min-h-screen bg-gray-100">
-      {userRole === "admin" && <AdminSidebar />}
+  const username = user?.name || "User";
 
-      {showQuiz ? (
-        <QuizPage
-          isOpen={showQuiz}
-          onClose={onCloseQuiz}
-          quizData={currentQuizData}
+  const mainContent = showQuiz ? (
+    <QuizPage isOpen={showQuiz} onClose={onCloseQuiz} quizData={currentQuizData} />
+  ) : hasActiveContentPath ? (
+    <>
+      {userRole !== "admin" && <WelcomeBanner username={username} />}
+      <div className="mb-4 flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-[var(--color-text)]">
+          {t("content_area")}
+        </h1>
+        {!isAtContentRoot && currentPath !== null && (
+          <Button variant="outline" size="sm" onClick={handleBack} fullWidth={false}>
+            &larr; {t("back")}
+          </Button>
+        )}
+      </div>
+      {currentPath && initialActivePath && (
+        <ContentBrowser
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+          onOpenFile={handleOpenFile}
+          initialActivePath={initialActivePath}
         />
-      ) : (
-        <div className={`flex-1 p-4 ${userRole === "admin" ? '' : 'ml-0'}`}>
-          {hasActiveContentPath ? (
-            <div className="flex-1 p-4">
-              <h1 className="text-3xl font-bold mb-4">{t('content_area')}</h1>
+      )}
+    </>
+  ) : userRole === "admin" ? (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <h1 className="mb-4 text-2xl font-bold text-[var(--color-text)]">
+        {t("no_active_content_path_set")}
+      </h1>
+      <p className="mb-6 max-w-md text-[var(--color-text-secondary)]">
+        {t("set_active_content_path_message")}
+      </p>
+      <Button onClick={handleAddContentPathClick}>
+        {t("go_to_content_path_settings")}
+      </Button>
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <WelcomeBanner username={username} />
+      <p className="text-lg text-[var(--color-text-secondary)]">
+        {t("no_content_available")}
+      </p>
+    </div>
+  );
 
-              {!isAtContentRoot && currentPath !== null && (
-                <button
-                  className="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-150 ease-in-out"
-                  onClick={handleBack}
-                >
-                  {t('back')}
-                </button>
-              )}
-
-              {currentPath && initialActivePath && (
-                <ContentBrowser
-                  currentPath={currentPath}
-                  onNavigate={handleNavigate}
-                  onOpenFile={handleOpenFile}
-                  initialActivePath={initialActivePath}
-                />
-              )}
-            </div>
-          ) : (userRole === "admin" ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <h1 className="text-2xl font-bold mb-4 text-center">
-                {t('no_active_content_path_set')}
-              </h1>
-              <p className="text-lg mb-6 text-center">
-                {t('set_active_content_path_message')}
-              </p>
-              <button
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                onClick={handleAddContentPathClick}
-              >
-                {t('go_to_content_path_settings')}
-              </button>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <h1 className="text-3xl font-bold mb-4">{t('welcome_to_home_page')}</h1>
-              <p className="text-lg mb-4">{t('no_content_available')}</p>
-            </div>
-          ))}
-
-          {isDecrypting && (
-            <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-              <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-orange-500"></div>
-              <div className="text-white mt-4 text-xl">{t('loading')}</div>
-            </div>
-          )}
-
-          {snackbarVisible && (
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded shadow-lg">
-              {snackbarMessage}
-            </div>
-          )}
+  return (
+    <AppShell sidebar={userRole === "admin" ? <AdminSidebar /> : undefined}>
+      <PageContent>{mainContent}</PageContent>
+      {isDecrypting && <LoadingOverlay message={t("loading")} />}
+      {snackbarVisible && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-[var(--color-text)] px-5 py-3 text-sm text-[var(--color-background)] shadow-[var(--shadow-lg)]">
+          {snackbarMessage}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
 
